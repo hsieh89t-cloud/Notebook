@@ -53,7 +53,7 @@ async function loadNotebook(force=false){
     if(!json.ok) throw new Error(json.msg||'Server error');
     NB_CACHE = json.articles||[];
     renderList(hold, NB_CACHE, { mode:'notebook' });
-  }catch(err){ hold.innerHTML = `<div class="empty">載入失敗：${err}</div>`; }
+  }catch(err){ hold.innerHTML = `<div class="empty">載入失敗：${err}`; }
 }
 async function loadRecycle(force=false){
   const hold = document.getElementById('recycleList');
@@ -64,7 +64,7 @@ async function loadRecycle(force=false){
     if(!json.ok) throw new Error(json.msg||'Server error');
     RC_CACHE = json.articles||[];
     renderList(hold, RC_CACHE, { mode:'recycle' });
-  }catch(err){ hold.innerHTML = `<div class="empty">載入失敗：${err}</div>`; }
+  }catch(err){ hold.innerHTML = `<div class="empty">載入失敗：${err}`; }
 }
 
 function renderList(hold, items, {mode, filter=''}={}){
@@ -125,7 +125,6 @@ function openReader(a, mode){
 
 // 編輯（Modal 內）
 function openEditor(a, inModal=false){
-  // 建立編輯UI
   mActions.innerHTML = '';
   mContent.innerHTML = `
     <div class="edit-field"><label>分類</label><input id="eCategory" value="${escapeAttr(a.category||'')}" /></div>
@@ -182,14 +181,43 @@ function hideImageFull(){ imgFull.hidden = true; }
 function showModal(){ modal.hidden = false; startSwipeClose(); }
 function hideModal(){ modal.hidden = true; }
 
-// 右滑關閉（簡易）
+// === 修正：右滑關閉手勢（避免亂飄） ===
 function startSwipeClose(){
-  let sx = 0, sy=0, dx=0;
   const panel = document.querySelector('.modal-panel');
-  function ts(e){ sx=e.touches[0].clientX; sy=e.touches[0].clientY; dx=0; }
-  function tm(e){ dx = e.touches[0].clientX - sx; if(Math.abs(e.touches[0].clientY - sy)>30)return; if(dx>0) panel.style.transform = `translate(calc(-50% + ${dx/6}px), -50%)`; }
-  function te(){ if(dx>80){ hideModal(); } panel.style.transform='translate(-50%,-50%)'; }
-  panel.addEventListener('touchstart', ts, {once:true});
+  let sx=0, sy=0, dx=0, dy=0, active=false, lockedAxis=null;
+
+  function ts(e){
+    const t = e.touches[0]; sx=t.clientX; sy=t.clientY; dx=0; dy=0; active=true; lockedAxis=null;
+    panel.style.transition = 'none';
+  }
+  function tm(e){
+    if(!active) return;
+    const t = e.touches[0]; dx = t.clientX - sx; dy = t.clientY - sy;
+
+    // 鎖定軸向：只要水平位移明顯大於垂直就鎖 X
+    if(!lockedAxis){
+      if(Math.abs(dx) > Math.abs(dy) + 10) lockedAxis = 'x';
+      else if(Math.abs(dy) > Math.abs(dx) + 10) lockedAxis = 'y';
+    }
+    if(lockedAxis === 'y'){ return; } // 交給滾動
+    if(lockedAxis !== 'x'){ return; } // 尚未鎖定，不位移
+
+    // 只處理向右（關閉手勢），向左不位移
+    if(dx <= 0){ panel.style.transform='translate(-50%,-50%)'; return; }
+
+    const travel = Math.min(dx/6, 60); // 限制位移，避免飄太遠
+    panel.style.transform = `translate(calc(-50% + ${travel}px), -50%)`;
+  }
+  function te(){
+    if(!active) return;
+    active=false;
+    panel.style.transition = 'transform .12s ease-out';
+    if(dx > 120 && lockedAxis==='x'){ hideModal(); }
+    else{ panel.style.transform='translate(-50%,-50%)'; }
+    setTimeout(()=>{ panel.style.transition=''; }, 150);
+  }
+
+  panel.addEventListener('touchstart', ts, {once:true, passive:true});
   panel.addEventListener('touchmove', tm, {passive:true});
   panel.addEventListener('touchend', te, {once:true});
 }
@@ -208,7 +236,7 @@ async function opPurge(id,close){
   await busy(async()=>{ await callAPI({action:'purge', id}); if(close) hideModal(); await loadRecycle(true); });
 }
 
-// 送文章（啟用）
+// 送文章
 const submitBtn = document.getElementById('submitBtn');
 if(submitBtn){
   submitBtn.addEventListener('click', async ()=>{
@@ -222,18 +250,13 @@ if(submitBtn){
   });
 }
 
-// Busy 遮罩（避免重覆點擊）
+// Busy 遮罩
 let BUSY = 0;
-async function busy(fn){
-  try{ BUSY++; document.body.style.pointerEvents='none'; await fn(); }
-  finally{ BUSY=Math.max(0,BUSY-1); if(BUSY===0) document.body.style.pointerEvents='auto'; }
-}
+async function busy(fn){ try{ BUSY++; document.body.style.pointerEvents='none'; await fn(); } finally{ BUSY=Math.max(0,BUSY-1); if(BUSY===0) document.body.style.pointerEvents='auto'; }}
 
 // 工具
 function nl2br(s){ return s.replace(/\n/g,'<br>'); }
-function escapeHTML(s){
-  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
+function escapeHTML(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function escapeAttr(s){ return (s||'').replace(/["&<>]/g, c=>({'"':'&quot;','&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function makeButton(text, cls, handler){
   const b = document.createElement('button'); b.className = cls; b.textContent = text;
