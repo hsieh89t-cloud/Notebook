@@ -1,7 +1,6 @@
-Notebook PWA v6.1（閱讀器・護眼深色版）
+Notebook PWA v6.2（護眼＋所有操作啟用）
 - 已注入 API_URL：https://script.google.com/macros/s/AKfycbzwmFbpNkGpQkzBKEcQ8tc0_rG7dyMJofrm8Gcm8JEJKaCTWeaoLuXS1WppCXoi9I0BhA/exec
-- 護眼配色：深灰藍背景（非純黑）、偏暖白文字、柔和邊界與陰影。
-- 支援圖片顯示：在試算表「插入儲存格上方圖片」，閱讀視窗會自動載入並可全螢幕。
-- 唯讀模式（window.READ_ONLY=true），若要啟用操作把 index.html 改為 false。
-- 搜尋（≥2字）、同步按鈕、點標題閱讀、右滑關閉閱讀視窗。
-- Service Worker 只快取本站 GET；跨網域/POST 直通。
+- 啟用：送出、移至回收、還原、永久刪除、編輯文章（update）。
+- 送出/操作採用 x-www-form-urlencoded，避開 CORS 預檢；SW 只快取 GET。
+- 點標題即可閱讀（Modal），右滑返回；閱讀視窗自動載入試算表「上方圖片」。
+- 若操作仍失敗，請確認你的 GAS 已部署含 doPost: append/recycle/restore/purge/update 且「任何人（含匿名）」。

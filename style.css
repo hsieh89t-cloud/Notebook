@@ -1,7 +1,7 @@
 
 :root{
-  --bg:#0f1214;      /* 不用純黑，深灰藍 */
-  --fg:#e8e8e5;      /* 不是純白，偏暖白 */
+  --bg:#0f1214;      /* 護眼深色，不用純黑 */
+  --fg:#e8e8e5;      /* 偏暖白 */
   --fg-2:#d2d2cf;
   --muted:#9aa1a6;
   --card:#121619;
@@ -9,6 +9,7 @@
   --accent:#66b3ff;
   --btn:#1b2126;
   --btn-border:#2a343b;
+  --danger:#a64545;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -35,12 +36,13 @@ input#q{
   border-radius:12px;padding:9px 12px;font-size:16px
 }
 .btn:disabled{opacity:.6}
+.btn-danger{background:var(--danger);border-color:#7a2f2f}
 .list{display:flex;flex-direction:column;gap:10px}
 .card{
   background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;
   box-shadow:0 6px 16px rgba(0,0,0,.25)
 }
-.card h3{margin:2px 0 6px;font-size:18px}
+.card h3{margin:2px 0 6px;font-size:18px;cursor:pointer}
 .meta{color:var(--muted);font-size:12px;margin-bottom:6px}
 .content{
   color:var(--fg-2);
@@ -70,6 +72,13 @@ textarea{
 .images{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .images img{width:100%;height:auto;border-radius:10px;border:1px solid var(--btn-border)}
 .images img:active{transform:scale(.98)}
+
+/* 編輯模式 */
+.edit-field{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.edit-field input, .edit-field textarea{
+  width:100%;border:1px solid var(--btn-border);border-radius:10px;background:#0f1519;color:var(--fg);padding:8px;font-size:16px
+}
+.edit-actions{display:flex;gap:8px;margin-top:10px}
 
 /* 全螢幕看圖 */
 #imgFull[hidden]{display:none}
