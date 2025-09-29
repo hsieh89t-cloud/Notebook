@@ -1,16 +1,10 @@
-
-// sw.js v6.2.1：只快取本站 GET；跨網域/POST 直通
-const CACHE = 'notebook-cache-v6-2-1';
-const ASSETS = ['./index.html','./style.css?v=6.2.1','./app.js?v=6.2.1','./manifest.json'];
-
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-});
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
-});
-self.addEventListener('fetch', e => {
-  const req = e.request; const url = new URL(req.url);
-  if (req.method !== 'GET' || url.origin !== location.origin) { e.respondWith(fetch(req)); return; }
-  e.respondWith(caches.match(req).then(r => r || fetch(req)));
+const VERSION='v7-prefill-2';
+const CORE=['./','./index.html','./manifest.json','./appicon.png'];
+self.addEventListener('install',e=>{ e.waitUntil(caches.open(VERSION).then(c=>c.addAll(CORE))); });
+self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(keys=>Promise.all(keys.map(k=>k!==VERSION && caches.delete(k))))); });
+self.addEventListener('fetch',e=>{
+  const url=new URL(e.request.url);
+  if(url.origin===location.origin && e.request.method==='GET'){
+    e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
+  }
 });

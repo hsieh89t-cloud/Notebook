@@ -1,70 +1,252 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
   <title>Notebook</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=6.2.1">
+  <meta name="theme-color" content="#0f1216">
+  <style>
+    :root{ --bg:#0f1216; --panel:#171b21; --panel-2:#1c2128; --text:#e9edf3; --muted:#9ba7b4; --accent:#3aa0ff; --chip:#252b35; --danger:#ff5466; --ok:#31d0aa; --shadow:0 10px 30px rgba(0,0,0,.35); --radius:14px; }
+    *{box-sizing:border-box} html,body{height:100%} body{margin:0;background:var(--bg);color:var(--text);font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,"PingFang TC","Noto Sans TC","Helvetica Neue",Arial,sans-serif}
+    header{position:sticky;top:0;background:linear-gradient(180deg,#0f1216 85%,#0f121600);z-index:10;padding:12px 16px 8px;border-bottom:1px solid #11151b;}
+    .brand{display:flex;gap:10px;align-items:center;font-weight:700;font-size:20px}
+    .tabs{display:flex;gap:10px;margin-top:10px}
+    .tab{padding:8px 14px;border-radius:999px;background:var(--chip);color:var(--text);border:1px solid #2a3140;opacity:.9}
+    .tab.active{outline:2px solid #2f86ff;opacity:1}
+    main{padding:10px 12px 40px;max-width:900px;margin:0 auto}
+    .list{display:flex;flex-direction:column;gap:12px}
+    .card{background:var(--panel);border:1px solid #232a36;border-radius:var(--radius);box-shadow:var(--shadow);padding:12px}
+    .head{display:flex;align-items:center;gap:8px;justify-content:space-between}
+    .title{font-weight:700;font-size:18px;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .meta{color:var(--muted);font-size:12px}
+    .tags{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+    .chip{background:var(--chip);color:#cfe3ff;border:1px solid #2a3140;border-radius:999px;padding:4px 10px;font-size:12px}
+    .actions{display:flex;gap:8px;margin-top:10px}
+    button{background:#202735;color:var(--text);border:1px solid #2a3140;border-radius:10px;padding:10px 12px;font-weight:600}
+    button.ok{border-color:#2b8b72} button.danger{border-color:#5a1b27;color:#ffd5db;background:#2a1319}
+    .empty{opacity:.6;text-align:center;padding:40px 0}
+    .modal{position:fixed;inset:0;display:none;align-items:flex-end;z-index:20} .modal.show{display:flex}
+    .sheet{width:100%;background:var(--panel-2);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:var(--shadow);max-height:86vh;overflow:auto;transform:translateX(0);will-change:transform;touch-action:pan-y}
+    .drag{width:44px;height:5px;border-radius:4px;background:#384150;margin:10px auto}
+    .sheet .title{padding:0 16px;margin:0 0 6px 0}
+    .content{padding:0 16px 18px;line-height:1.65;white-space:pre-wrap}
+    .filterBar{display:flex;align-items:center;gap:8px;margin:8px 4px 14px}
+    .search{flex:1;background:#0d1014;border:1px solid #242a37;color:#cfe3ff;border-radius:999px;padding:10px 12px}
+    .section{background:var(--panel);border:1px solid #232a36;border-radius:var(--radius);padding:8px 10px;margin:8px 0}
+    .collapseHead{display:flex;align-items:center;justify-content:space-between}
+    .hidden{display:none} textarea{width:100%;min-height:180px;border-radius:12px;border:1px solid #243042;background:var(--panel);color:var(--text);padding:12px;resize:vertical}
+    .submit{position:sticky;bottom:16px;left:0;right:0;width:100%;padding:12px;border-radius:12px;background:#2550a2;color:#fff;border:1px solid #2f6bd2}
+    .note{font-size:12px;color:var(--muted);margin-top:8px}
+  </style>
 </head>
 <body>
   <header>
-    <h1>📒 Notebook</h1>
-    <nav class="tabs">
+    <div class="brand">📒 <span>Notebook</span></div>
+    <div class="tabs">
       <button class="tab active" data-tab="notebook">Notebook</button>
       <button class="tab" data-tab="recycle">回收桶</button>
       <button class="tab" data-tab="new">新增</button>
-    </nav>
+    </div>
   </header>
 
   <main>
-    <section id="view-notebook" class="view active">
-      <div class="toolbar">
-        <input id="q" placeholder="搜尋標題 / 內容（至少 2 字）" />
-        <button id="btnSync" class="btn">同步</button>
+    <div class="section" id="tagSection">
+      <div class="collapseHead">
+        <div>標籤 · <span id="tagCount">0</span></div>
+        <button id="toggleTags">展開/收合</button>
       </div>
-      <div id="notebookList" class="list">載入中…</div>
-    </section>
+      <div id="tagChips" class="tags"></div>
+    </div>
 
-    <section id="view-recycle" class="view">
-      <div class="toolbar">
-        <button id="btnSyncR" class="btn">同步</button>
-      </div>
-      <div id="recycleList" class="list">載入中…</div>
-    </section>
+    <div class="filterBar">
+      <input id="search" class="search" placeholder="搜尋標題 / 內容 / 分類…（至少 2 字）"/>
+      <button id="refresh">同步</button>
+    </div>
 
-    <section id="view-new" class="view">
-      <div class="composer">
-        <textarea id="inputContent" placeholder="輸入文章（可含：分類：、標題：）"></textarea>
-        <button id="submitBtn" class="btn">送出</button>
-      </div>
+    <section id="view-notebook" class="list"></section>
+    <section id="view-recycle" class="list hidden"></section>
+
+    <section id="view-new" class="hidden">
+      <textarea id="inputContent" placeholder="請貼上/輸入文章（可含：分類：、標題：、#標籤：）"></textarea>
+      <button id="submitBtn" class="submit">送出</button>
+      <div class="note">送出後自動解析：日期 / 分類 / 標題（無則取前 8 字）/ 標籤（#xxx）</div>
     </section>
   </main>
 
-  <!-- 閱讀視窗 -->
-  <div id="readerModal" class="modal" hidden>
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal-panel">
-      <div class="modal-header">
-        <h2 id="mTitle"></h2>
-        <button class="modal-close" data-close>✕</button>
-      </div>
-      <div class="modal-meta" id="mMeta"></div>
-      <div class="modal-content" id="mContent"></div>
-      <div id="mImages" class="images"></div>
-      <div class="modal-actions" id="mActions"></div>
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="sheet" id="sheet">
+      <div class="drag"></div>
+      <h3 class="title" id="mTitle"></h3>
+      <div class="meta" style="padding:0 16px 6px" id="mMeta"></div>
+      <div class="content" id="mContent"></div>
+      <div class="tags" id="mTags" style="padding:0 16px 16px"></div>
     </div>
   </div>
 
   <script>
-    window.API_URL = "https://script.google.com/macros/s/AKfycbzwmFbpNkGpQkzBKEcQ8tc0_rG7dyMJofrm8Gcm8JEJKaCTWeaoLuXS1WppCXoi9I0BhA/exec";
-    window.READ_ONLY = false;
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=6.2.1').catch(console.error);
-      });
+    window.API_URL = "https://script.google.com/macros/s/AKfycbzwmFbpNkGpQkzBKEcQ8tc0_rG7dyMJofrm8Gcm8JEJKaCTWeaoLuXS1WppCXoi9I0BhA/exec"; // 已幫你填入
+
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    function fmtDate(iso){ try{const d=new Date(iso);return d.toLocaleString();}catch(_){return ''}}
+    function h(tag, attrs={}, ...kids){
+      const el=document.createElement(tag);
+      for(const k in attrs){
+        if(k==='class') el.className=attrs[k];
+        else if(k==='dataset'){ Object.assign(el.dataset, attrs[k]); }
+        else if(k.startsWith('on')) el.addEventListener(k.slice(2), attrs[k]);
+        else el.setAttribute(k, attrs[k]);
+      }
+      for(const kid of kids){ if(kid==null) continue; el.append(kid.nodeType?kid:document.createTextNode(kid)); }
+      return el;
     }
+
+    const state = { list:[], recycle:[], filterTag:null, collapsedTags: JSON.parse(localStorage.getItem('tagsCollapsed')||'false') };
+
+    function toggleView(tab){
+      $$('.tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+      $('#view-notebook').classList.add('hidden');
+      $('#view-recycle').classList.add('hidden');
+      $('#view-new').classList.add('hidden');
+      if(tab==='notebook') $('#view-notebook').classList.remove('hidden');
+      if(tab==='recycle') $('#view-recycle').classList.remove('hidden');
+      if(tab==='new') $('#view-new').classList.remove('hidden');
+      if(tab==='notebook') renderList();
+      if(tab==='recycle') renderRecycle();
+    }
+    $$('.tab').forEach(b=>b.addEventListener('click',()=>toggleView(b.dataset.tab)));
+
+    function renderTags(){
+      $('#tagChips').innerHTML='';
+      const tags = new Map();
+      state.list.forEach(a=> (a.tags||'').split(/\s+/).filter(Boolean).forEach(t=>tags.set(t,(tags.get(t)||0)+1)));
+      const arr=[...tags.entries()].sort((a,b)=>b[1]-a[1]);
+      $('#tagCount').textContent = arr.length;
+      for(const [name,count] of arr){
+        $('#tagChips').append(h('button',{class:'chip',onclick:()=>{ state.filterTag = (state.filterTag===name? null : name); renderList(); }}, name+' '+count));
+      }
+      const body=$('#tagChips');
+      if(state.collapsedTags){ body.style.display='none'; } else { body.style.display='flex'; }
+      $('#toggleTags').textContent = state.collapsedTags? '展開' : '收合';
+    }
+    $('#toggleTags').addEventListener('click',()=>{ state.collapsedTags=!state.collapsedTags; localStorage.setItem('tagsCollapsed',JSON.stringify(state.collapsedTags)); renderTags(); });
+
+    async function fetchJSON(url,opt){ const res=await fetch(url,opt); if(!res.ok) throw new Error('HTTP '+res.status); return await res.json(); }
+    async function loadAll(){
+      const nH=$('#view-notebook'); const rH=$('#view-recycle'); nH.innerHTML='<div class="empty">載入中…</div>'; rH.innerHTML='<div class="empty">載入中…</div>';
+      try{
+        const [n,r]=await Promise.all([ fetchJSON(API_URL+'?type=listNotebook'), fetchJSON(API_URL+'?type=listRecycle') ]);
+        state.list=(n.articles||[]).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+        state.recycle=(r.articles||[]).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+        renderTags(); renderList(); renderRecycle();
+      }catch(err){ nH.innerHTML='<div class="empty">載入失敗： '+err.message+'</div>'; rH.innerHTML='<div class="empty">載入失敗： '+err.message+'</div>'; }
+    }
+    $('#refresh').addEventListener('click',loadAll);
+
+    function renderList(){
+      const q=$('#search').value.trim();
+      let items=[...state.list];
+      if(state.filterTag){ items = items.filter(a => (a.tags||'').split(/\s+/).includes(state.filterTag)); }
+      if(q.length>=2){
+        const t=q.toLowerCase();
+        items = items.filter(a => (a.title||'').toLowerCase().includes(t) || (a.content||'').toLowerCase().includes(t) || (a.category||'').toLowerCase().includes(t));
+      }
+      const hold=$('#view-notebook'); hold.innerHTML='';
+      if(items.length===0){ hold.innerHTML='<div class="empty">沒有資料</div>'; return; }
+      for(const a of items){
+        const card = h('div',{class:'card'});
+        card.append(
+          h('div',{class:'head'},
+            h('div',{}, h('div',{class:'title'}, a.title||'（無標題）'), h('div',{class:'meta'}, (a.category? a.category+' · ':'') + fmtDate(a.date)) )
+          ),
+          h('div',{class:'tags'}, ...(a.tags||'').split(/\s+/).filter(Boolean).map(t=>h('span',{class:'chip'}, t)))
+        );
+        const actions = h('div',{class:'actions'});
+        actions.append(
+          h('button',{onclick:()=>openModal(a)},'閱讀'),
+          h('button',{onclick:()=>confirmRecycle(a), class:'danger'},'回收')
+        );
+        card.append(actions);
+        hold.append(card);
+      }
+    }
+
+    function renderRecycle(){
+      const hold=$('#view-recycle'); hold.innerHTML='';
+      if(state.recycle.length===0){ hold.innerHTML='<div class="empty">回收桶是空的</div>'; return; }
+      for(const a of state.recycle){
+        const card=h('div',{class:'card'});
+        card.append(
+          h('div',{class:'head'},
+            h('div',{}, h('div',{class:'title'}, a.title||'（無標題）'),
+              h('div',{class:'meta'}, (a.category? a.category+' · ':'') + fmtDate(a.date) + (a.expireAt? (' ｜ 刪除日 ' + (new Date(a.expireAt)).toLocaleDateString()):''))
+            )
+          ),
+          h('div',{class:'tags'}, ...(a.tags||'').split(/\s+/).filter(Boolean).map(t=>h('span',{class:'chip'}, t)))
+        );
+        const actions=h('div',{class:'actions'});
+        actions.append(
+          h('button',{onclick:()=>openModal(a)},'閱讀'),
+          h('button',{onclick:()=>confirmRestore(a), class:'ok'},'還原'),
+          h('button',{onclick:()=>confirmPurge(a), class:'danger'},'永久刪除')
+        );
+        card.append(actions);
+        hold.append(card);
+      }
+    }
+
+    // Modal + 右滑關閉
+    const modal=$('#modal'), sheet=$('#sheet');
+    function openModal(a){
+      $('#mTitle').textContent=a.title||'（無標題）';
+      $('#mMeta').textContent=(a.category? a.category+' · ':'') + fmtDate(a.date);
+      $('#mContent').textContent=a.content||'';
+      const tagBox=$('#mTags'); tagBox.innerHTML=''; (a.tags||'').split(/\s+/).filter(Boolean).forEach(t=>tagBox.append(h('span',{class:'chip'},t)));
+      modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
+      document.body.style.overflow='hidden';
+    }
+    function closeModal(){ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow='auto'; sheet.style.transform='translateX(0)'; }
+    modal.addEventListener('click',(e)=>{ if(e.target===modal) closeModal(); });
+    let sx=null,sy=null,dx=0,dy=0,locked=false;
+    sheet.addEventListener('touchstart',e=>{const t=e.touches[0]; sx=t.clientX; sy=t.clientY; dx=0; dy=0; locked=false;},{passive:true});
+    sheet.addEventListener('touchmove',e=>{ if(sx==null) return; const t=e.touches[0]; dx=t.clientX-sx; dy=t.clientY-sy; if(!locked){ locked=Math.abs(dx)>Math.abs(dy);} if(!locked) return; if(dx<0) dx=0; if(dx>60) dx=60; sheet.style.transform='translateX('+dx+'px)'; },{passive:true});
+    sheet.addEventListener('touchend',()=>{ if(dx>120){ closeModal(); } else { sheet.style.transform='translateX(0)'; } sx=sy=null; dx=dy=0; locked=false; },{passive:true});
+
+    // 送出
+    let sending=false;
+    $('#submitBtn').addEventListener('click', async ()=>{
+      if(sending) return;
+      const txt = $('#inputContent').value.trim();
+      if(!txt){ alert('請先輸入內容'); return; }
+      sending=true; $('#submitBtn').textContent='送出中…';
+      try{
+        await fetchJSON(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'append', content: txt }) });
+        $('#inputContent').value=''; alert('已送出 ✅'); await loadAll(); toggleView('notebook');
+      }catch(err){ alert('送出失敗：'+err.message); }
+      finally{ sending=false; $('#submitBtn').textContent='送出'; }
+    });
+
+    // 確認
+    async function confirmRecycle(a){ if(!confirm('要把這篇移到回收桶嗎？\n\n《'+(a.title||'無標題')+'》')) return;
+      try{ await fetchJSON(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'recycle',id:a.id})}); await loadAll(); alert('已移到回收桶'); }
+      catch(err){ alert('失敗：'+err.message); }
+    }
+    async function confirmRestore(a){ if(!confirm('要還原這篇文章嗎？\n\n《'+(a.title||'無標題')+'》')) return;
+      try{ await fetchJSON(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'restore',id:a.id})}); await loadAll(); alert('已還原'); }
+      catch(err){ alert('失敗：'+err.message); }
+    }
+    async function confirmPurge(a){ if(!confirm('⚠️ 這會永久刪除且不可復原。\n\n確定要刪除《'+(a.title||'無標題')+'》嗎？')) return;
+      try{ await fetchJSON(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'purge',id:a.id})}); await loadAll(); alert('已永久刪除'); }
+      catch(err){ alert('失敗：'+err.message); }
+    }
+
+    $('#search').addEventListener('input', ()=>renderList());
+
+    window.addEventListener('load', ()=>{
+      if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(()=>{}); }
+      loadAll();
+    });
   </script>
-  <script src="app.js?v=6.2.1"></script>
 </body>
 </html>

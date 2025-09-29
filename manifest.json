@@ -3,7 +3,13 @@
   "short_name": "Notebook",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f1214",
-  "theme_color": "#0f1214",
-  "icons": []
+  "background_color": "#0f1216",
+  "theme_color": "#0f1216",
+  "icons": [
+    {
+      "src": "appicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
