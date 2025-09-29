@@ -1,7 +1,7 @@
 
-// sw.js v6.2.1：只快取本站 GET；跨網域/POST 直通
-const CACHE = 'notebook-cache-v6-2-1';
-const ASSETS = ['./index.html','./style.css?v=6.2.1','./app.js?v=6.2.1','./manifest.json'];
+// sw.js v6.2：只快取本站 GET；跨網域/POST 直通
+const CACHE = 'notebook-cache-v6-2';
+const ASSETS = ['./index.html','./style.css?v=6.2','./app.js?v=6.2','./manifest.json'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
