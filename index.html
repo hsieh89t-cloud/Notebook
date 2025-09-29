@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Notebook</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css?v=6.2.1">
+</head>
+<body>
+  <header>
+    <h1>📒 Notebook</h1>
+    <nav class="tabs">
+      <button class="tab active" data-tab="notebook">Notebook</button>
+      <button class="tab" data-tab="recycle">回收桶</button>
+      <button class="tab" data-tab="new">新增</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="view-notebook" class="view active">
+      <div class="toolbar">
+        <input id="q" placeholder="搜尋標題 / 內容（至少 2 字）" />
+        <button id="btnSync" class="btn">同步</button>
+      </div>
+      <div id="notebookList" class="list">載入中…</div>
+    </section>
+
+    <section id="view-recycle" class="view">
+      <div class="toolbar">
+        <button id="btnSyncR" class="btn">同步</button>
+      </div>
+      <div id="recycleList" class="list">載入中…</div>
+    </section>
+
+    <section id="view-new" class="view">
+      <div class="composer">
+        <textarea id="inputContent" placeholder="輸入文章（可含：分類：、標題：）"></textarea>
+        <button id="submitBtn" class="btn">送出</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 閱讀視窗 -->
+  <div id="readerModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 id="mTitle"></h2>
+        <button class="modal-close" data-close>✕</button>
+      </div>
+      <div class="modal-meta" id="mMeta"></div>
+      <div class="modal-content" id="mContent"></div>
+      <div id="mImages" class="images"></div>
+      <div class="modal-actions" id="mActions"></div>
+    </div>
+  </div>
+
+  <script>
+    window.API_URL = "https://script.google.com/macros/s/AKfycbzwmFbpNkGpQkzBKEcQ8tc0_rG7dyMJofrm8Gcm8JEJKaCTWeaoLuXS1WppCXoi9I0BhA/exec";
+    window.READ_ONLY = false;
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js?v=6.2.1').catch(console.error);
+      });
+    }
+  </script>
+  <script src="app.js?v=6.2.1"></script>
+</body>
+</html>
