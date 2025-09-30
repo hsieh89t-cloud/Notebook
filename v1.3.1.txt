@@ -1,0 +1,23 @@
+好了！我把「字體小中大用一顆按鈕循環」+「畫面固定不縮放」一起做成 **v1.3.1** 了，直接下載覆蓋即可。
+
+### 下載（v1.3.1）
+
+* [index.html](sandbox:/mnt/data/notebook-pwa-v1_3_1/index.html)
+* [styles.css](sandbox:/mnt/data/notebook-pwa-v1_3_1/styles.css)
+* [app.js](sandbox:/mnt/data/notebook-pwa-v1_3_1/app.js)
+* [manifest.json](sandbox:/mnt/data/notebook-pwa-v1_3_1/manifest.json)
+* [service-worker.js](sandbox:/mnt/data/notebook-pwa-v1_3_1/service-worker.js)
+
+### 這版做了什麼
+
+* **一顆字體按鈕**（`中`）：點一下會在「小 → 中 → 大」三種大小之間循環，並且記住設定。
+* **畫面固定不縮放**：`<meta viewport>` 加上 `maximum-scale=1, user-scalable=no`，再加上搜尋框字體 16px，避免 iOS 自動放大。
+* **標籤/搜尋固定**：仍是 sticky，一直跟著頁面。
+* **圖片顯示**：沿用 v1.3 的強化邏輯（自動轉換 Google Drive 連結、允許 https 與 data:image、雙擊圖片 Lightbox 放大）。
+
+### 覆蓋後請記得
+
+1. 重新整理時按 **Shift + Reload**（清掉 service worker 快取）。
+2. 若個別圖片還不顯示，多半是 Drive 權限，請設為「知道連結的任何人可檢視」。
+
+要再把「已選標籤永遠顯示（即使收合時也可見）」做成 v1.3.2，我也可以馬上補上。

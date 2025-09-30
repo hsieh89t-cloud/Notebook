@@ -2,8 +2,8 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>Notebook PWA v1.3</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Notebook PWA v1.3.1</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css" />
   <meta name="theme-color" content="#0b0f14" />
@@ -13,11 +13,7 @@
     <h1 class="logo">Notebook</h1>
     <div class="top-actions">
       <button id="themeToggle" aria-label="切換主題">🌓</button>
-      <div class="font-size">
-        <button data-fs="small" title="小">小</button>
-        <button data-fs="medium" title="中">中</button>
-        <button data-fs="large" title="大">大</button>
-      </div>
+      <button id="fontToggle" class="font-toggle" title="切換字體大小">中</button>
       <input id="searchInput" type="search" placeholder="搜尋 標題/內容/標籤…" />
     </div>
   </header>
@@ -56,10 +52,8 @@
     </section>
   </main>
 
-  <!-- 浮動書籤按鈕（沿用） -->
   <button id="bookmarkBtn" class="fab" title="書籤">🔖</button>
 
-  <!-- 圖片 Lightbox（點兩下放大/點背景關閉） -->
   <div id="lightbox">
     <img id="lightboxImg" alt="image" />
   </div>

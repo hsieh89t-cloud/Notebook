@@ -8,13 +8,11 @@ html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font:var(--fs)/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans TC','PingFang TC',sans-serif}
 a{color:var(--accent);text-decoration:none}
 
-/* header + sticky filters */
 .topbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--card);border-bottom:1px solid #00000033}
 .logo{margin:0;font-size:18px}
 .top-actions{display:flex;gap:8px;align-items:center}
 #themeToggle{padding:6px 10px;background:var(--chip);color:var(--fg);border:0;border-radius:8px}
-.font-size button{padding:6px 8px;background:var(--chip);border:0;border-radius:8px;color:var(--fg)}
-.font-size button.active{outline:2px solid var(--accent)}
+.font-toggle{padding:6px 10px;background:var(--chip);border:0;border-radius:10px;color:var(--fg);min-width:36px}
 #searchInput{padding:8px 10px;border-radius:8px;border:1px solid #00000022;background:transparent;color:var(--fg);width:44vw;max-width:380px;font-size:16px}
 
 .filters{position:sticky;top:58px;z-index:19;display:flex;gap:10px;align-items:center;padding:10px 12px;flex-wrap:wrap;background:var(--bg)}
@@ -42,10 +40,8 @@ select{padding:8px 10px;border-radius:8px;background:var(--chip);color:var(--fg)
 .btn{display:inline-block;padding:8px 12px;background:var(--chip);border-radius:8px}
 .back{display:inline-block;margin-bottom:8px}
 
-/* floating bookmark */
 .fab{position:fixed;right:14px;bottom:18px;z-index:30;background:var(--accent);color:#fff;border:0;border-radius:50%;width:52px;height:52px;box-shadow:0 6px 16px rgba(0,0,0,.35);font-size:22px;line-height:52px;text-align:center}
 
-/* Lightbox */
 #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:1000}
 #lightbox.open{display:flex}
 #lightboxImg{max-width:95vw;max-height:90vh;border-radius:8px}
