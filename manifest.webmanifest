@@ -1,1 +1,9 @@
-{"name": "Notebook", "short_name": "Notebook", "start_url": "./", "display": "standalone", "background_color": "#0b0f14", "theme_color": "#0b0f14", "icons": []}
+{
+  "name": "Notebook",
+  "short_name": "Notebook",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": []
+}

@@ -18,7 +18,7 @@
     <div class="top-actions">
       <button id="themeToggle" title="深/淺色">🌗</button>
       <button id="fontToggle" class="font-toggle" title="字級">中</button>
-      <input id="searchInput" type="search" placeholder="搜尋…" aria-label="search">
+      <input id="searchInput" type="search" placeholder="搜尋 標題/內容/標籤…" aria-label="search">
     </div>
   </header>
 
@@ -31,17 +31,22 @@
   </div>
 
   <main>
+    <!-- List View -->
     <section id="listView" class="view view--active">
       <ul id="noteList" class="cards"></ul>
       <div id="listEmpty" class="empty" hidden>尚無資料</div>
       <div id="listError" class="error" hidden>載入失敗 <a href="#" id="retryList">重試</a></div>
     </section>
+
+    <!-- Detail View -->
     <section id="detailView" class="view">
       <div class="note">
         <a href="#/" class="back">← 返回列表</a>
         <h2 id="noteTitle"></h2>
         <div class="meta">
-          <span id="noteDate"></span><span id="noteCat"></span><span id="noteTags"></span>
+          <span id="noteDate"></span>
+          <span id="noteCat"></span>
+          <span id="noteTags"></span>
         </div>
         <article id="noteBody" class="markdown"></article>
       </div>
@@ -53,13 +58,23 @@
     </section>
   </main>
 
+  <!-- 書籤 FAB -->
   <a href="#" id="bookmarkBtn" class="fab" aria-label="書籤">📌</a>
+
+  <!-- 圖片 Lightbox -->
   <div id="lightbox"><img id="lightboxImg" alt=""></div>
 
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
     }
+    window.addEventListener('DOMContentLoaded',()=>{
+      const t = (window.__CONFIG__ && window.__CONFIG__.APP_TITLE) || 'Notebook';
+      document.getElementById('appTitle').textContent = t;
+      document.title = t;
+    });
   </script>
 </body>
 </html>
