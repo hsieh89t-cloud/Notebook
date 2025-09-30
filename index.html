@@ -1,70 +1,67 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Notebook</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notebook PWA Demo</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=6.2">
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#0b0f14" />
 </head>
 <body>
-  <header>
-    <h1>📒 Notebook</h1>
-    <nav class="tabs">
-      <button class="tab active" data-tab="notebook">Notebook</button>
-      <button class="tab" data-tab="recycle">回收桶</button>
-      <button class="tab" data-tab="new">新增</button>
-    </nav>
+  <header class="topbar">
+    <h1 class="logo">Notebook</h1>
+    <div class="top-actions">
+      <button id="themeToggle" aria-label="切換主題">🌓</button>
+      <input id="searchInput" type="search" placeholder="搜尋 標題/內容/標籤…" />
+    </div>
   </header>
 
-  <main>
-    <section id="view-notebook" class="view active">
-      <div class="toolbar">
-        <input id="q" placeholder="搜尋標題 / 內容（至少 2 字）" />
-        <button id="btnSync" class="btn">同步</button>
-      </div>
-      <div id="notebookList" class="list">載入中…</div>
+  <nav class="filters">
+    <select id="categoryFilter">
+      <option value="">全部分類</option>
+    </select>
+    <div id="tagChips" class="chips"></></div>
+  </nav>
+
+  <main id="app">
+    <section id="listView" class="view view--active">
+      <ul id="noteList" class="cards"></ul>
+      <div id="listEmpty" class="empty" hidden>目前沒有資料</div>
+      <div id="listError" class="error" hidden>讀取失敗，<button id="retryList">重試</button></div>
     </section>
 
-    <section id="view-recycle" class="view">
-      <div class="toolbar">
-        <button id="btnSyncR" class="btn">同步</button>
+    <section id="detailView" class="view">
+      <article class="note">
+        <a href="#" class="back">&larr; 返回列表</a>
+        <h2 id="noteTitle"></h2>
+        <div class="meta">
+          <span id="noteDate"></span>
+          <span id="noteCat"></span>
+          <span id="noteTags"></span>
+        </div>
+        <div id="noteBody" class="markdown"></div>
+      </article>
+      <div class="pager">
+        <a id="prevLink" href="#" class="btn" hidden>上一篇</a>
+        <a id="nextLink" href="#" class="btn" hidden>下一篇</a>
       </div>
-      <div id="recycleList" class="list">載入中…</div>
-    </section>
-
-    <section id="view-new" class="view">
-      <div class="composer">
-        <textarea id="inputContent" placeholder="輸入文章（可含：分類：、標題：）"></textarea>
-        <button id="submitBtn" class="btn">送出</button>
-      </div>
+      <div id="detailError" class="error" hidden>讀取失敗，<a href="#" id="detailRetry">重試</a></div>
     </section>
   </main>
 
-  <!-- 閱讀視窗 -->
-  <div id="readerModal" class="modal" hidden>
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal-panel">
-      <div class="modal-header">
-        <h2 id="mTitle"></h2>
-        <button class="modal-close" data-close>✕</button>
-      </div>
-      <div class="modal-meta" id="mMeta"></div>
-      <div class="modal-content" id="mContent"></div>
-      <div id="mImages" class="images"></div>
-      <div class="modal-actions" id="mActions"></div>
-    </div>
-  </div>
+  <!-- Markdown & Sanitizer -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
   <script>
-    window.API_URL = "https://script.google.com/macros/s/AKfycbzwmFbpNkGpQkzBKEcQ8tc0_rG7dyMJofrm8Gcm8JEJKaCTWeaoLuXS1WppCXoi9I0BhA/exec";
-    window.READ_ONLY = false; // 啟用操作（回收/還原/永久刪除/送出/編輯）
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=6.2').catch(console.error);
-      });
-    }
+    window.__CONFIG__ = {
+      BASE_URL: "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec"
+    };
   </script>
-  <script src="app.js?v=6.2"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }
+  </script>
 </body>
 </html>
