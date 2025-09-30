@@ -2,8 +2,8 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Notebook PWA Demo v1.1</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Notebook PWA v1.3</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css" />
   <meta name="theme-color" content="#0b0f14" />
@@ -13,6 +13,11 @@
     <h1 class="logo">Notebook</h1>
     <div class="top-actions">
       <button id="themeToggle" aria-label="切換主題">🌓</button>
+      <div class="font-size">
+        <button data-fs="small" title="小">小</button>
+        <button data-fs="medium" title="中">中</button>
+        <button data-fs="large" title="大">大</button>
+      </div>
       <input id="searchInput" type="search" placeholder="搜尋 標題/內容/標籤…" />
     </div>
   </header>
@@ -34,10 +39,7 @@
 
     <section id="detailView" class="view">
       <article class="note">
-        <div class="note-head">
-          <a href="#" class="back">&larr; 返回列表</a>
-          <button id="bookmarkBtn" class="icon-btn" title="書籤">🔖</button>
-        </div>
+        <a href="#" class="back">&larr; 返回列表</a>
         <h2 id="noteTitle"></h2>
         <div class="meta">
           <span id="noteDate"></span>
@@ -54,17 +56,18 @@
     </section>
   </main>
 
+  <!-- 浮動書籤按鈕（沿用） -->
+  <button id="bookmarkBtn" class="fab" title="書籤">🔖</button>
+
+  <!-- 圖片 Lightbox（點兩下放大/點背景關閉） -->
+  <div id="lightbox">
+    <img id="lightboxImg" alt="image" />
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-
-  <script>
-    window.__CONFIG__ = {
-      BASE_URL: "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec"
-    };
-  </script>
+  <script>window.__CONFIG__={ BASE_URL: "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec" };</script>
   <script src="app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }
-  </script>
+  <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('service-worker.js'); }</script>
 </body>
 </html>

@@ -1,22 +1,270 @@
-const BASE=window.__CONFIG__.BASE_URL;
-let cacheList=[],lastQuery={q:"",tag:"",cat:""},tagCollapsed=!0;const TAG_LIMIT=10;
-const els={listView:document.getElementById('listView'),detailView:document.getElementById('detailView'),noteList:document.getElementById('noteList'),listEmpty:document.getElementById('listEmpty'),listError:document.getElementById('listError'),retryList:document.getElementById('retryList'),search:document.getElementById('searchInput'),catSel:document.getElementById('categoryFilter'),tagChips:document.getElementById('tagChips'),moreTags:document.getElementById('moreTagsBtn'),noteTitle:document.getElementById('noteTitle'),noteDate:document.getElementById('noteDate'),noteCat:document.getElementById('noteCat'),noteTags:document.getElementById('noteTags'),noteBody:document.getElementById('noteBody'),prev:document.getElementById('prevLink'),next:document.getElementById('nextLink'),detailError:document.getElementById('detailError'),detailRetry:document.getElementById('detailRetry'),themeToggle:document.getElementById('themeToggle'),bookmarkBtn:document.getElementById('bookmarkBtn')};
-(function(){const e=localStorage.getItem('theme')||'dark';'light'===e&&document.documentElement.classList.add('light'),els.themeToggle.addEventListener('click',()=>{document.documentElement.classList.toggle('light'),localStorage.setItem('theme',document.documentElement.classList.contains('light')?'light':'dark')})})();
-async function fetchJSON(e){const t=await fetch(e,{cache:'no-store'});if(!t.ok)throw new Error(t.status+' '+t.statusText);return await t.json()}
-function parseTags(e){return e?String(e).trim().split(/\s+/).filter(Boolean):[]}
-function applyFilters(e){const t=(lastQuery.q||"").toLowerCase(),n=lastQuery.tag,a=lastQuery.cat;return e.filter(e=>!(a&&String(e.category||'')!==a)&&(!!(!n||parseTags(e.tags).includes(n))&&(!(t&&![e.title,e.body,e.tags].join(' ').toLowerCase().includes(t)))))}
-function uniq(e){return Array.from(new Set(e))}
-function renderListUI(e){const t=uniq(e.map(e=>String(e.category||'')).filter(Boolean)).sort();els.catSel.innerHTML='<option value="">全部分類</option>'+t.map(e=>`<option value="${e}">${e}</option>`).join(''),els.catSel.value=lastQuery.cat||'';const n=new Map;e.forEach(e=>parseTags(e.tags).forEach(t=>n.set(t,(n.get(t)||0)+1)));const a=Array.from(n.entries()).sort((e,t)=>t[1]-e[1]).map(([e])=>e),o=tagCollapsed?a.slice(0,TAG_LIMIT):a;els.tagChips.innerHTML=o.map(e=>{const t=e===lastQuery.tag?' chip--active':'';return `<button class="chip${t}" data-tag="${e}">#${e}</button>`}).join(''),els.moreTags.hidden=a.length<=TAG_LIMIT,els.moreTags.textContent=tagCollapsed?'更多…':'收合',els.moreTags.onclick=()=>{tagCollapsed=!tagCollapsed,renderListUI(e),renderList(e)},els.tagChips.querySelectorAll('.chip').forEach(t=>t.addEventListener('click',()=>{const n=t.dataset.tag;lastQuery.tag=lastQuery.tag===n?"":n,renderListUI(e),updateList()}))}
-async function loadList(){els.listError.hidden=!0;const e=await fetchJSON(`${BASE}?type=listNotebook`);if(!e.ok)throw new Error(JSON.stringify(e.error||{}));let t=e.data||[];return t.sort((e,t)=>String(t.date).localeCompare(String(e.date))),cacheList=t,renderListUI(t),t}
-function escapeHTML(e){const t=document.createElement('div');return t.textContent=null==e?'':String(e),t.innerHTML}
-function renderList(e){const t=applyFilters(e);els.noteList.innerHTML=t.map(e=>{const t=parseTags(e.tags).slice(0,4).map(e=>'#'+e).join(' '),n=String(e.body||'').replace(/\n+/g,' ').slice(0,100);return `<li class="card">
-      <a href="#/note/${e.id}"><h3>${escapeHTML(e.title||'(未命名)')}</h3></a>
-      <div class="meta"><span>${escapeHTML(e.date||'')}</span><span>${escapeHTML(e.category||'')}</span><span>${escapeHTML(t)}</span></div>
-      <div class="preview">${escapeHTML(n)}</div>
-    </li>`}).join(''),els.listEmpty.hidden=0!==t.length}
-async function updateList(){try{const e=cacheList.length?cacheList:await loadList();renderList(e)}catch(e){console.error(e),els.listError.hidden=!1}}
-let bookmarkY=null;function toast(e){const t=document.createElement('div');t.textContent=e,Object.assign(t.style,{position:'fixed',left:'50%',bottom:'20px',transform:'translateX(-50%)',background:'rgba(0,0,0,.7)',color:'#fff',padding:'8px 12px',borderRadius:'8px',zIndex:9999}),document.body.appendChild(t),setTimeout(()=>{t.remove()},1600)}
-els.bookmarkBtn.addEventListener('click',()=>{null==bookmarkY?(bookmarkY=window.scrollY,toast('已設書籤，點同一顆可返回')):(window.scrollTo({top:bookmarkY,behavior:'smooth'}),bookmarkY=null)});
-async function showNote(e){els.detailError.hidden=!0,bookmarkY=null;try{const t=await fetchJSON(`${BASE}?type=getById&id=${encodeURIComponent(e)}`);if(!t.ok||!t.data)throw new Error('not found');const n=t.data;document.title=(n.title||'Notebook')+' - Notebook',document.querySelector('.back').setAttribute('href','#/'),document.querySelectorAll('.view').forEach(e=>e.classList.remove('view--active')),els.detailView.classList.add('view--active');const{noteTitle:a,noteDate:o,noteCat:i,noteTags:l,noteBody:r,prev:c,next:s}=els;a.textContent=n.title||'(未命名)',o.textContent=n.date||'',i.textContent=n.category||'',l.textContent=parseTags(n.tags).map(e=>'#'+e).join(' ');const d=marked.parse(String(n.body||''),{mangle:!1,headerIds:!1}),p=DOMPurify.sanitize(d,{ADD_ATTR:['target']});r.innerHTML=p,r.querySelectorAll('a[href]').forEach(e=>e.setAttribute('target','_blank')),cacheList.length||await loadList();const u=cacheList.findIndex(e=>e.id===n.id),m=u>0?cacheList[u-1]:null,g=u>=0&&u<cacheList.length-1?cacheList[u+1]:null;m?(c.hidden=!1,c.href=`#/note/${m.id}`):c.hidden=!0,g?(s.hidden=!1,s.href=`#/note/${g.id}`):s.hidden=!0}catch(e){console.error(e),els.detailError.hidden=!1}}
-function route(){const e=location.hash||'#/';if(document.querySelectorAll('.view').forEach(e=>e.classList.remove('view--active')),e.match(/^#\/note\/(.+)$/)){const t=decodeURIComponent(RegExp.$1);showNote(t)}else els.listView.classList.add('view--active'),updateList()}
-window.addEventListener('hashchange',route),els.retryList&&els.retryList.addEventListener('click',e=>{e.preventDefault(),updateList()}),els.detailRetry&&els.detailRetry.addEventListener('click',e=>{e.preventDefault(),route()}),els.search.addEventListener('input',()=>{lastQuery.q=els.search.value.trim(),updateList()}),els.catSel.addEventListener('change',()=>{lastQuery.cat=els.catSel.value,updateList()}),route();
+// v1.3: sticky tags+search, font sizes, robust images, floating bookmark, lightbox
+const BASE = window.__CONFIG__.BASE_URL;
+
+let cacheList = [];
+let lastQuery = { q: "", tag: "", cat: "" };
+let tagCollapsed = true;
+const TAG_LIMIT = 10;
+
+// Elements
+const els = {
+  listView: document.getElementById('listView'),
+  detailView: document.getElementById('detailView'),
+  noteList: document.getElementById('noteList'),
+  listEmpty: document.getElementById('listEmpty'),
+  listError: document.getElementById('listError'),
+  retryList: document.getElementById('retryList'),
+  search: document.getElementById('searchInput'),
+  catSel: document.getElementById('categoryFilter'),
+  tagChips: document.getElementById('tagChips'),
+  moreTags: document.getElementById('moreTagsBtn'),
+  noteTitle: document.getElementById('noteTitle'),
+  noteDate: document.getElementById('noteDate'),
+  noteCat: document.getElementById('noteCat'),
+  noteTags: document.getElementById('noteTags'),
+  noteBody: document.getElementById('noteBody'),
+  prev: document.getElementById('prevLink'),
+  next: document.getElementById('nextLink'),
+  detailError: document.getElementById('detailError'),
+  detailRetry: document.getElementById('detailRetry'),
+  themeToggle: document.getElementById('themeToggle'),
+  bookmarkBtn: document.getElementById('bookmarkBtn'),
+  lightbox: document.getElementById('lightbox'),
+  lightboxImg: document.getElementById('lightboxImg'),
+};
+
+// Theme
+(function initTheme(){
+  const saved = localStorage.getItem('theme') || 'dark';
+  if (saved === 'light') document.documentElement.classList.add('light');
+  els.themeToggle.addEventListener('click', () => {
+    document.documentElement.classList.toggle('light');
+    localStorage.setItem('theme', document.documentElement.classList.contains('light') ? 'light' : 'dark');
+  });
+})();
+
+// Font size
+(function initFontSize(){
+  const buttons = document.querySelectorAll('.font-size button');
+  const saved = localStorage.getItem('fs') || 'medium';
+  applyFs(saved);
+  buttons.forEach(b => {
+    if (b.dataset.fs === saved) b.classList.add('active');
+    b.addEventListener('click', () => {
+      buttons.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      applyFs(b.dataset.fs);
+      localStorage.setItem('fs', b.dataset.fs);
+    });
+  });
+  function applyFs(key){
+    const map = { small: '14px', medium: '16px', large: '19px' };
+    document.documentElement.style.setProperty('--fs', map[key] || '16px');
+  }
+})();
+
+// Helpers
+async function fetchJSON(url){
+  const res = await fetch(url, { cache: 'no-store' });
+  if(!res.ok) throw new Error(res.status + ' ' + res.statusText);
+  return await res.json();
+}
+
+function parseTags(str){
+  if(!str) return [];
+  return String(str).trim().split(/\s+/).filter(Boolean);
+}
+
+function applyFilters(items){
+  const q = (lastQuery.q||"").toLowerCase();
+  const tag = lastQuery.tag;
+  const cat = lastQuery.cat;
+  return items.filter(it => {
+    if (cat && String(it.category||'') !== cat) return false;
+    if (tag && !parseTags(it.tags).includes(tag)) return false;
+    if (q){
+      const hay = [it.title, it.body, it.tags].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function uniq(arr){ return Array.from(new Set(arr)); }
+
+function renderListUI(items){
+  // categories
+  const cats = uniq(items.map(x => String(x.category||'')).filter(Boolean)).sort();
+  els.catSel.innerHTML = '<option value=\"\">全部分類</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  els.catSel.value = lastQuery.cat || '';
+
+  // tags with collapse & toggle
+  const freq = new Map();
+  items.forEach(it => parseTags(it.tags).forEach(t => freq.set(t, (freq.get(t)||0)+1)));
+  const topAll = Array.from(freq.entries()).sort((a,b)=>b[1]-a[1]).map(([t])=>t);
+  const show = tagCollapsed ? topAll.slice(0, TAG_LIMIT) : topAll;
+  els.tagChips.innerHTML = show.map(t => {
+    const active = (t === lastQuery.tag) ? ' chip--active' : '';
+    return `<button class="chip${active}" data-tag="${t}">#${t}</button>`;
+  }).join('');
+  els.moreTags.hidden = topAll.length <= TAG_LIMIT;
+  els.moreTags.textContent = tagCollapsed ? '更多…' : '收合';
+  els.moreTags.onclick = () => { tagCollapsed = !tagCollapsed; renderListUI(items); renderList(items); };
+
+  els.tagChips.querySelectorAll('.chip').forEach(btn => btn.addEventListener('click', () => {
+    const t = btn.dataset.tag;
+    lastQuery.tag = (lastQuery.tag === t) ? "" : t; // toggle to clear
+    renderListUI(items);
+    updateList();
+  }));
+}
+
+async function loadList(){
+  els.listError.hidden = true;
+  const j = await fetchJSON(`${BASE}?type=listNotebook`);
+  if(!j.ok) throw new Error(JSON.stringify(j.error||{}));
+  let items = j.data || [];
+  items.sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+  cacheList = items;
+  renderListUI(items);
+  return items;
+}
+
+function escapeHTML(s){
+  const div = document.createElement('div');
+  div.textContent = s == null ? '' : String(s);
+  return div.innerHTML;
+}
+
+function renderList(items){
+  const filtered = applyFilters(items);
+  els.noteList.innerHTML = filtered.map(it => {
+    const tags = parseTags(it.tags).slice(0,4).map(t => `#${t}`).join(' ');
+    const preview = String(it.body||'').replace(/\n+/g,' ').slice(0,100);
+    return `<li class="card">
+      <a href="#/note/${it.id}"><h3>${escapeHTML(it.title||'(未命名)')}</h3></a>
+      <div class="meta"><span>${escapeHTML(it.date||'')}</span><span>${escapeHTML(it.category||'')}</span><span>${escapeHTML(tags)}</span></div>
+      <div class="preview">${escapeHTML(preview)}</div>
+    </li>`;
+  }).join('');
+  els.listEmpty.hidden = filtered.length !== 0;
+}
+
+async function updateList(){
+  try{
+    const items = cacheList.length ? cacheList : await loadList();
+    renderList(items);
+  }catch(e){
+    console.error(e);
+    els.listError.hidden = false;
+  }
+}
+
+// Bookmark (floating)
+let bookmarkY = null;
+els.bookmarkBtn.addEventListener('click', () => {
+  if (bookmarkY == null) {
+    bookmarkY = window.scrollY;
+    toast('已設書籤；再點一次回到書籤');
+  } else {
+    window.scrollTo({ top: bookmarkY, behavior: 'smooth' });
+    bookmarkY = null;
+  }
+});
+function toast(msg){
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, {position:'fixed',left:'50%',bottom:'20px',transform:'translateX(-50%)',background:'rgba(0,0,0,.7)',color:'#fff',padding:'8px 12px',borderRadius:'8px',zIndex:9999});
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.remove(); }, 1500);
+}
+
+// Detail
+async function showNote(id){
+  els.detailError.hidden = true;
+  bookmarkY = null;
+  try{
+    const j = await fetchJSON(`${BASE}?type=getById&id=${encodeURIComponent(id)}`);
+    if(!j.ok || !j.data) throw new Error('not found');
+    const it = j.data;
+
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('view--active'));
+    els.detailView.classList.add('view--active');
+
+    els.noteTitle.textContent = it.title || '(未命名)';
+    els.noteDate.textContent = it.date || '';
+    els.noteCat.textContent = it.category || '';
+    els.noteTags.textContent = parseTags(it.tags).map(t=>'#'+t).join(' ');
+
+    // ---- Robust Markdown -> HTML with Drive image fix ----
+    const rawMD = String(it.body || "");
+
+    const mdFixed = rawMD
+      // open?id= or file/d/ → uc?export=view&id=
+      .replace(/\((https:\/\/drive\.google\.com\/(?:open\?id=|file\/d\/)([A-Za-z0-9\-_]+)[^)]*)\)/g,
+        (_m, _url, id) => `(https://drive.google.com/uc?export=view&id=${id})`);
+
+    const rawHTML = marked.parse(mdFixed, { mangle:false, headerIds:false });
+    const clean = DOMPurify.sanitize(rawHTML, {
+      ADD_ATTR: ['target','referrerpolicy','loading','decoding'],
+      ALLOWED_URI_REGEXP: /^(https?:|data:image\/)/i
+    });
+    els.noteBody.innerHTML = clean;
+    // link target
+    els.noteBody.querySelectorAll('a[href]').forEach(a => a.setAttribute('target','_blank'));
+    // tune images
+    els.noteBody.querySelectorAll('img').forEach(img => {
+      const m = String(img.src).match(/https:\/\/drive\.google\.com\/(?:open\?id=|file\/d\/)([A-Za-z0-9\-_]+)/);
+      if (m) img.src = `https://drive.google.com/uc?export=view&id=${m[1]}`;
+      img.setAttribute('loading','lazy');
+      img.setAttribute('decoding','async');
+      img.setAttribute('referrerpolicy','no-referrer');
+      // double click to open lightbox
+      img.addEventListener('dblclick', () => openLightbox(img.src));
+    });
+
+    // prev/next
+    if (!cacheList.length) await loadList();
+    const idx = cacheList.findIndex(x => x.id === it.id);
+    const prev = idx > 0 ? cacheList[idx-1] : null;
+    const next = idx >= 0 && idx < cacheList.length-1 ? cacheList[idx+1] : null;
+    if (prev){ els.prev.hidden=false; els.prev.href = `#/note/${prev.id}`; } else { els.prev.hidden=true; }
+    if (next){ els.next.hidden=false; els.next.href = `#/note/${next.id}`; } else { els.next.hidden=true; }
+
+  }catch(e){
+    console.error(e);
+    els.detailError.hidden = false;
+  }
+}
+
+// Lightbox
+function openLightbox(src){
+  els.lightboxImg.src = src;
+  els.lightbox.classList.add('open');
+  document.body.classList.add('modal-open');
+}
+els.lightbox.addEventListener('click', () => {
+  els.lightbox.classList.remove('open');
+  document.body.classList.remove('modal-open');
+});
+
+// Router & events
+function route(){
+  const hash = location.hash || '#/';
+  const m = hash.match(/^#\/note\/(.+)$/);
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('view--active'));
+  if (m){
+    els.detailView.classList.add('view--active');
+    showNote(decodeURIComponent(m[1]));
+  }else{
+    els.listView.classList.add('view--active');
+    updateList();
+  }
+}
+window.addEventListener('hashchange', route);
+els.retryList && els.retryList.addEventListener('click', e => { e.preventDefault(); updateList(); });
+els.detailRetry && els.detailRetry.addEventListener('click', e => { e.preventDefault(); route(); });
+els.search.addEventListener('input', () => { lastQuery.q = els.search.value.trim(); updateList(); });
+els.catSel.addEventListener('change', () => { lastQuery.cat = els.catSel.value; updateList(); });
+
+route();

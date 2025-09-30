@@ -1,4 +1,9 @@
 {
-  "name":"Notebook PWA Demo v1.1","short_name":"Notebook","start_url":".","display":"standalone",
-  "background_color":"#0b0f14","theme_color":"#0b0f14","icons":[]
+  "name": "Notebook PWA v1.3",
+  "short_name": "Notebook",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": []
 }
