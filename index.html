@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Notebook PWA Demo</title>
+  <title>Notebook PWA Demo v1.1</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css" />
   <meta name="theme-color" content="#0b0f14" />
@@ -21,7 +21,8 @@
     <select id="categoryFilter">
       <option value="">全部分類</option>
     </select>
-    <div id="tagChips" class="chips"></></div>
+    <div id="tagChips" class="chips"></div>
+    <button id="moreTagsBtn" class="chip chip--more" hidden>更多…</button>
   </nav>
 
   <main id="app">
@@ -33,7 +34,10 @@
 
     <section id="detailView" class="view">
       <article class="note">
-        <a href="#" class="back">&larr; 返回列表</a>
+        <div class="note-head">
+          <a href="#" class="back">&larr; 返回列表</a>
+          <button id="bookmarkBtn" class="icon-btn" title="書籤">🔖</button>
+        </div>
         <h2 id="noteTitle"></h2>
         <div class="meta">
           <span id="noteDate"></span>
@@ -50,7 +54,6 @@
     </section>
   </main>
 
-  <!-- Markdown & Sanitizer -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
