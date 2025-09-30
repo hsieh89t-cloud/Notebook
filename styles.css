@@ -3,7 +3,8 @@
   --line:#00000033;
   --fs:16px;
   --topbar-h:56px;
-  --container: 900px; /* ← 版心寬度，想窄就改 840 或 820 */
+  /* 版心寬：不超過 900px，且永遠保留左右 12px 邊距（在小螢幕生效） */
+  --container: clamp(320px, 100vw - 24px, 900px);
 }
 :root.light{ --bg:#fff; --fg:#1a1a1a; --muted:#666; --card:#f4f6f8; --accent:#0a84ff; --chip:#e8eef5; --line:#0000001f; }
 
@@ -17,26 +18,25 @@ a{color:var(--accent);text-decoration:none}
 /* ---- Sticky Header ---- */
 .topbar{
   position:sticky;top:0;left:0;right:0;width:100%;z-index:20;
-  display:flex;justify-content:space-between;align-items:center;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
   padding-top:10px;padding-bottom:10px;
-  /* 讓內容置中：左右 padding 依版心自動計算 */
-  padding-left: calc(max(12px, (100vw - var(--container)) / 2));
-  padding-right: calc(max(12px, (100vw - var(--container)) / 2));
+  padding-left: calc((100vw - var(--container)) / 2);
+  padding-right: calc((100vw - var(--container)) / 2);
   background:var(--card);border-bottom:1px solid var(--line)
 }
-.logo{margin:0;font-size:18px;flex:0 0 auto}
+.logo{margin:0;font-size:20px;flex:0 0 auto}
 .top-actions{display:flex;gap:8px;align-items:center;flex:1 1 auto;min-width:0}
 #themeToggle{padding:6px 10px;background:var(--chip);color:var(--fg);border:0;border-radius:8px}
 .font-toggle{padding:6px 10px;background:var(--chip);border:0;border-radius:10px;color:var(--fg);min-width:36px}
-#searchInput{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--fg);width:44vw;max-width:380px;font-size:16px}
+#searchInput{padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--fg);width:50vw;max-width:420px;font-size:16px}
 
 /* ---- Filters（含分隔線 & 置中） ---- */
 .filters{
   position:sticky;top:var(--topbar-h);left:0;right:0;width:100%;z-index:19;
   display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--line);
   padding-top:10px;padding-bottom:10px;
-  padding-left: calc(max(12px, (100vw - var(--container)) / 2));
-  padding-right: calc(max(12px, (100vw - var(--container)) / 2));
+  padding-left: calc((100vw - var(--container)) / 2);
+  padding-right: calc((100vw - var(--container)) / 2);
 }
 select{padding:8px 10px;border-radius:8px;background:var(--chip);color:var(--fg);border:1px solid var(--line)}
 .chips{display:flex;gap:6px;flex-wrap:wrap;max-width:100%;overflow:hidden}
@@ -50,10 +50,10 @@ select{padding:8px 10px;border-radius:8px;background:var(--chip);color:var(--fg)
   display:grid;grid-template-columns:1fr;gap:12px;
   max-width: var(--container);
 }
-.card{padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
-.card h3{margin:0 0 6px 0;font-size:16px}
+.card{padding:14px;border-radius:14px;background:var(--card);border:1px solid var(--line)}
+.card h3{margin:0 0 6px 0;font-size:18px}
 .card .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-.card .preview{color:var(--fg);opacity:.8;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card .preview{color:var(--fg);opacity:.85;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 
 .empty,.error{text-align:center;color:var(--muted);padding:30px}
 .view{display:none}
@@ -77,10 +77,18 @@ select{padding:8px 10px;border-radius:8px;background:var(--chip);color:var(--fg)
 #lightboxImg{max-width:95vw;max-height:90vh;border-radius:8px}
 body.modal-open{overflow:hidden}
 
+/* ---- iPhone（<=420px）微調 ---- */
+@media (max-width: 420px){
+  .logo{font-size:18px}
+  #searchInput{width:48vw}
+  .card{padding:12px;border-radius:12px}
+  .card h3{font-size:17px}
+}
+
 /* ---- iOS Safe Area ---- */
 @supports(padding: max(0px)) {
   .topbar, .filters {
-    padding-left: max(calc((100vw - var(--container)) / 2), env(safe-area-inset-left), 12px);
-    padding-right: max(calc((100vw - var(--container)) / 2), env(safe-area-inset-right), 12px);
+    padding-left: max(calc((100vw - var(--container)) / 2), env(safe-area-inset-left));
+    padding-right: max(calc((100vw - var(--container)) / 2), env(safe-area-inset-right));
   }
 }
