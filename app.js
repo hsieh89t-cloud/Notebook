@@ -1,13 +1,4 @@
 
-// A2HS detection: add class to HTML for standalone adjustments
-(function(){
-  try {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (isStandalone) document.documentElement.classList.add('a2hs');
-  } catch (e) {}
-})();
-
-
 (()=>{
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));
@@ -211,3 +202,154 @@ async function init(force=false){
 
 init();
 })();
+
+
+// ===== Editable Module v1.6.0 =====
+(function(){
+  const CFG = window.NB_CFG || {};
+  const API = CFG.API_BASE;
+  const ACT = (CFG.ACTIONS||{});
+  const OUTBOX_KEY = 'nb_outbox_v1';
+
+  function showSaving(msg){
+    let el = document.querySelector('.saving');
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'saving';
+      el.id = 'savingInfo';
+      const nav = document.querySelector('.detail-nav');
+      nav && nav.after(el);
+    }
+    el.textContent = msg || '正在儲存…';
+    clearTimeout(el._t);
+    el._t = setTimeout(()=>{ el.textContent=''; }, 1500);
+  }
+
+  // --- Outbox for offline edits ---
+  function readOutbox(){
+    try{ return JSON.parse(localStorage.getItem(OUTBOX_KEY))||[]; }catch(e){ return []; }
+  }
+  function writeOutbox(list){
+    try{ localStorage.setItem(OUTBOX_KEY, JSON.stringify(list)); }catch(e){}
+  }
+  async function flushOutbox(){
+    const list = readOutbox();
+    if(!list.length) return;
+    for(const job of list.slice()){
+      try{
+        if(job.type==='create') await apiCreate(job.data);
+        if(job.type==='update') await apiUpdate(job.id, job.data);
+        const cur = readOutbox().filter(x=>x.ts!==job.ts);
+        writeOutbox(cur);
+      }catch(e){ /* keep it for next time */ }
+    }
+  }
+  window.addEventListener('online', flushOutbox);
+  setTimeout(flushOutbox, 800);
+
+  // --- API helpers ---
+  async function apiCreate(payload){
+    const url = API + '?action=' + encodeURIComponent(ACT.create||'createNote');
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    if(!res.ok) throw new Error('Create fail: ' + text);
+    try{ return JSON.parse(text); }catch{ return { ok:true }; }
+  }
+
+  async function apiUpdate(id, payload){
+    const url = API + '?action=' + encodeURIComponent(ACT.update||'updateNote') + '&id=' + encodeURIComponent(id);
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    if(!res.ok) throw new Error('Update fail: ' + text);
+    try{ return JSON.parse(text); }catch{ return { ok:true }; }
+  }
+
+  // --- UI behaviors ---
+  const fab = document.getElementById('fabNew');
+  if(fab){
+    fab.addEventListener('click', async ()=>{
+      const now = new Date();
+      const note = { title: now.toLocaleString(), content: '', tags: [] };
+      try{
+        showSaving('正在新增…');
+        await apiCreate(note);
+        showSaving('已新增');
+        if(typeof window.reloadList==='function') reloadList();
+      }catch(e){
+        const jobs = readOutbox();
+        jobs.push({ type:'create', data:note, ts: Date.now() });
+        writeOutbox(jobs);
+        showSaving('離線已暫存，恢復網路會自動送出');
+      }
+    });
+  }
+
+  const detail = document.getElementById('detail');
+  if(detail){
+    function enableEditable(){
+      if(detail._editableInit) return;
+      detail._editableInit = true;
+      detail.addEventListener('click', (e)=>{
+        if(detail.getAttribute('data-mode')==='read'){
+          detail.setAttribute('data-mode','edit');
+          let wrapper = detail.querySelector('.editable');
+          if(!wrapper){
+            wrapper = document.createElement('div');
+            wrapper.className = 'editable';
+            wrapper.innerHTML = detail.innerHTML;
+            detail.innerHTML = '';
+            detail.appendChild(wrapper);
+          }
+          wrapper.setAttribute('contenteditable','true');
+          wrapper.focus();
+        }
+      });
+
+      let timer=null;
+      detail.addEventListener('input', ()=>{
+        if(detail.getAttribute('data-mode')!=='edit') return;
+        clearTimeout(timer);
+        timer = setTimeout(async ()=>{
+          const contentEl = detail.querySelector('.editable') || detail;
+          const content = contentEl.innerHTML;
+          const id = window.currentArticleId;
+          const titleEl = document.querySelector('#detail h1, #detail .title, #detail [data-title]');
+          const title = titleEl ? (titleEl.textContent || titleEl.innerText || '') : '';
+          const payload = { title, content };
+          try{
+            showSaving('正在儲存…');
+            await apiUpdate(id, payload);
+            showSaving('已儲存');
+          }catch(e){
+            const jobs = readOutbox();
+            jobs.push({ type:'update', id, data: payload, ts: Date.now() });
+            writeOutbox(jobs);
+            showSaving('離線暫存，恢復網路自動同步');
+          }
+        }, 1200);
+      });
+
+      detail.addEventListener('blur', (e)=>{
+        if(e.target.matches('.editable')){
+          setTimeout(()=> detail.setAttribute('data-mode','read'), 150);
+        }
+      }, true);
+    }
+
+    const origOnRender = window.onArticleRendered;
+    window.onArticleRendered = function(article){
+      if(origOnRender) try{ origOnRender(article); }catch(e){}
+      enableEditable();
+    };
+  }
+
+})(); 
+

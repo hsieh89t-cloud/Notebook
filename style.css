@@ -51,12 +51,30 @@ body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSyst
 /* A2HS/Bookmark */
 .tools button#goBookmarkBtn{background:var(--accent);color:#fff}
 
-
-/* iOS A2HS safe area */
-@supports(padding: env(safe-area-inset-top)) {
-  body{ padding-bottom: env(safe-area-inset-bottom); }
-  .appbar{ padding-top: calc(12px + env(safe-area-inset-top)); }
-  .controls{ top: calc(56px + env(safe-area-inset-top)); }
-  .detail-nav{ top: calc(56px + env(safe-area-inset-top)); }
+/* ===== iOS A2HS normalize for buttons ===== */
+.tools button, .detail-nav button {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  border-radius: 12px;
 }
+.detail-nav button { background: var(--chip); color: var(--fg); padding: 8px 10px; }
+#pinBtn { background: var(--chip); }
+#goBookmarkBtn { background: var(--accent); color: #fff; }
+html.a2hs .detail-nav button { box-shadow: none; } /* avoid default glossy style */
+
+
+/* ===== Editable v1.6.0 ===== */
+.fab{position:fixed;right:18px;bottom:24px;width:56px;height:56px;border-radius:50%;
+  background:var(--accent);color:#fff;border:0;font-size:28px;line-height:56px;text-align:center;
+  box-shadow:0 6px 16px rgba(0,0,0,.25);z-index:60}
+.fab:active{transform:translateY(1px);opacity:.9}
+
+.detail [contenteditable="true"]{outline:none;white-space:pre-wrap}
+.detail .editable{min-height:160px;cursor:text}
+.detail .edit-toolbar{display:flex;gap:8px;margin:8px 0}
+.detail .edit-toolbar .chip{background:var(--chip);padding:6px 10px;border-radius:999px;border:1px solid #00000022;cursor:pointer}
+.detail .saving{position:sticky;top:56px;margin:-6px 0 8px 0;font-size:.85em;color:var(--muted)}
+
+html.a2hs .fab{box-shadow:none}
 
