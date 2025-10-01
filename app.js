@@ -152,3 +152,90 @@ on($('categoryFilter'),'change',()=>{ lastQuery.cat=$('categoryFilter').value; u
 
 // 初始
 route();
+
+/* ===== FULLFIX5_BOOKMARK: 書籤超穩定版（跨頁/重整可回復） ===== */
+(function(){
+  const KEY = 'nb_bookmark_snap'; // {hash, y, t}
+  const SEL = '#bookmarkBtn, [data-bookmark], .fab';
+
+  // 工具：現在位置（hash）& 取得/設定捲動量
+  const nowHash = () => location.hash || '#/';
+  const getY = () => (window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0);
+  function scrollToY(y){
+    try {
+      window.scrollTo({ top: y, behavior: 'smooth' });
+      // 某些 iOS/Safari 會忽略 smooth；保險補一次
+      setTimeout(()=>window.scrollTo(0, y), 350);
+    } catch(_){
+      window.scrollTo(0, y);
+    }
+  }
+
+  // 存/取/清 書籤
+  function saveSnap(){
+    const snap = { hash: nowHash(), y: getY(), t: Date.now() };
+    localStorage.setItem(KEY, JSON.stringify(snap));
+    toast('已設書籤；再點一次回去');
+  }
+  function getSnap(){
+    try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch(_){ return null; }
+  }
+  function clearSnap(){ localStorage.removeItem(KEY); }
+
+  // 回到書籤（同頁 or 跨頁）
+  function goToSnap(){
+    const snap = getSnap();
+    if(!snap){ toast('沒有書籤'); return; }
+    const doScroll = () => { scrollToY(Math.max(0, snap.y|0)); clearSnap(); };
+    if (snap.hash === nowHash()) {
+      // 同頁直接捲
+      doScroll();
+    } else {
+      // 跨頁：先導到當時 hash，再等內容載入完成後捲
+      const once = () => { setTimeout(doScroll, 180); window.removeEventListener('hashchange', once); };
+      window.addEventListener('hashchange', once);
+      location.hash = snap.hash;
+    }
+  }
+
+  // 綁定 FAB（防 <a> 預設行為＆DOM 重建）
+  function bindBtn(){
+    const btn = document.querySelector(SEL);
+    if(!btn) return;
+    if (btn.__nb_bookmark_bound) return; // 防重綁
+    btn.__nb_bookmark_bound = true;
+    btn.addEventListener('click', (e)=>{
+      e.preventDefault && e.preventDefault();
+      e.stopPropagation && e.stopPropagation();
+      const snap = getSnap();
+      if (snap) goToSnap(); else saveSnap();
+    }, { passive:false });
+  }
+  // 初次綁定
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindBtn);
+  } else { bindBtn(); }
+  // DOM 改動時自動重綁（例如切換列表/內文）
+  new MutationObserver(()=>bindBtn()).observe(document.documentElement, { childList:true, subtree:true });
+
+  // 載入後若上一場留下書籤，而且 hash 相同，自動顯示提示（避免忘記）
+  setTimeout(()=>{
+    const snap = getSnap();
+    if (snap && snap.hash === nowHash()) {
+      toast('已有書籤；再點一次📌回去');
+    }
+  }, 400);
+
+  // 小吐司
+  function toast(msg){
+    const t=document.createElement('div');
+    t.textContent=msg;
+    Object.assign(t.style,{
+      position:'fixed',left:'50%',bottom:'20px',transform:'translateX(-50%)',
+      background:'rgba(0,0,0,.75)',color:'#fff',padding:'8px 12px',
+      borderRadius:'8px',zIndex:9999,fontSize:'14px'
+    });
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(),1500);
+  }
+})();
