@@ -1,31 +1,43 @@
 <!doctype html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Notebook 📒 v1.5.1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Notebook</title>
 <link rel="stylesheet" href="style.css">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0f141a">
+<script defer src="config.js"></script>
+<script defer src="app.js"></script>
 </head>
-<body data-font="medium" class="dark">
+<body>
 <header class="appbar">
-  <div class="brand">Notebook <span class="ver">v1.5.1</span> 📒</div>
-  <div class="controls">
-    <button id="themeToggle" class="chip" aria-label="切換深淺色">🌙</button>
-    <button id="fontToggle" class="chip" aria-label="切換字級">中</button>
-    <input id="searchInput" class="search" placeholder="搜尋 標題/內容/標籤…">
-    <button id="refreshBtn" class="chip" title="更新">🔄</button>
-    <button id="debugBtn" class="chip" title="偵錯">🧪</button>
+  <div class="title"><span id="appTitle">Notebook</span> <small id="ver"></small></div>
+  <div class="tools">
+    <button id="themeBtn" aria-label="切換主題">🌙</button>
+    <button id="fontBtn" aria-label="字級">中</button>
+    <button id="refreshBtn" aria-label="強制更新">🔄</button>
+    <button id="debugBtn" aria-label="除錯">🧪</button>
   </div>
 </header>
 
-<nav id="tagBar" class="tagbar"></nav>
-<main id="listView" class="view"></main>
-<section id="detailView" class="view hidden"></section>
-<button id="bookmarkBtn" class="fab" title="書籤">🔖</button>
+<section class="controls">
+  <input id="searchInput" class="search" placeholder="搜尋 標題/內容/標籤…">
+  <div id="tagRow" class="tags"></div>
+</section>
 
-<script src="config.js"></script>
-<script src="app.js"></script>
+<main id="listView" class="list view">
+  <div id="empty" class="empty">沒有符合條件的筆記</div>
+  <ul id="cards" class="cards"></ul>
+</main>
+
+<main id="detailView" class="detail view hidden">
+  <nav class="detail-nav">
+    <button id="backBtn">← 返回列表</button>
+    <button id="pinBtn">🔖 書籤</button>
+  </nav>
+  <article id="detail"></article>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<div id="modal" class="modal hidden"><pre id="modalText"></pre><button id="modalClose">關閉</button></div>
 </body>
 </html>
