@@ -1,80 +1,27 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>Notebook</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#0b0f14">
-  <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script defer src="config.js"></script>
-  <script defer src="app.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notebook 📒</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar">
-    <h1 class="logo" id="appTitle">Notebook</h1>
-    <div class="top-actions">
-      <button id="themeToggle" title="深/淺色">🌗</button>
-      <button id="fontToggle" class="font-toggle" title="字級">中</button>
-      <input id="searchInput" type="search" placeholder="搜尋 標題/內容/標籤…" aria-label="search">
-    </div>
+  <header>
+    <h1>Notebook 📒</h1>
+    <button id="themeToggle">🌙</button>
+    <button id="fontToggle">中</button>
+    <input id="searchInput" placeholder="搜尋 標題/內容/標籤..." />
+    <button id="refreshBtn">🔄</button>
   </header>
 
-  <div class="filters">
-    <select id="categoryFilter">
-      <option value="">全部分類</option>
-    </select>
-    <div class="chips" id="tagChips"></div>
-    <button id="moreTagsBtn" class="chip chip--more" hidden>更多…</button>
-  </div>
+  <nav id="tagBar"></nav>
+  <main id="listView" class="view"></main>
+  <section id="detailView" class="view hidden"></section>
 
-  <main>
-    <!-- List View -->
-    <section id="listView" class="view view--active">
-      <ul id="noteList" class="cards"></ul>
-      <div id="listEmpty" class="empty" hidden>尚無資料</div>
-      <div id="listError" class="error" hidden>載入失敗 <a href="#" id="retryList">重試</a></div>
-    </section>
+  <button id="bookmarkBtn" class="floating">🔖</button>
 
-    <!-- Detail View -->
-    <section id="detailView" class="view">
-      <div class="note">
-        <a href="#/" class="back">← 返回列表</a>
-        <h2 id="noteTitle"></h2>
-        <div class="meta">
-          <span id="noteDate"></span>
-          <span id="noteCat"></span>
-          <span id="noteTags"></span>
-        </div>
-        <article id="noteBody" class="markdown"></article>
-      </div>
-      <nav class="pager">
-        <a id="prevLink" class="btn" href="#" hidden>上一篇</a>
-        <a id="nextLink" class="btn" href="#" hidden>下一篇</a>
-      </nav>
-      <div id="detailError" class="error" hidden>讀取失敗 <a href="#" id="detailRetry">重試</a></div>
-    </section>
-  </main>
-
-  <!-- 書籤 FAB -->
-  <button id="bookmarkBtn" class="fab" aria-label="書籤">📌</button>
-
-  <!-- 圖片 Lightbox -->
-  <div id="lightbox"><img id="lightboxImg" alt=""></div>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js');
-      });
-    }
-    window.addEventListener('DOMContentLoaded',()=>{
-      const t = (window.__CONFIG__ && window.__CONFIG__.APP_TITLE) || 'Notebook';
-      document.getElementById('appTitle').textContent = t;
-      document.title = t;
-    });
-  </script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
