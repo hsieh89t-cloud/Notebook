@@ -6,4 +6,7 @@ window.NB_CFG = {
   TAG_LIMIT:10,
   TITLE:'Notebook',
   VERSION:'v1.5.2'
+,
+  API_FALLBACK:'',
+  VERSION:'v1.5.2.2'
 };

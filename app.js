@@ -24,17 +24,40 @@ $('#themeBtn').addEventListener('click', toggleTheme);
 $('#fontBtn').addEventListener('click', cycleFont);
 applyTheme(); applyFont();
 
+// --- A2HS-safe fetch (handles CORS/redirect/debug) ---
+async function safeFetchJSON(url) {
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' }
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}\n` + text.slice(0, 500));
+    try { return JSON.parse(text); } catch (e) {
+      // 某些情況後端字串化物件
+      if (text.startsWith('{') && text.includes('"data"')) {
+        return (new Function('return ' + text))();
+      }
+      throw new Error('JSON parse fail: ' + text.slice(0, 500));
+    }
+  } catch (err) {
+    if (typeof window.openModal === 'function') {
+      openModal('[A2HS] ' + String(err));
+    } else {
+      alert('[A2HS] ' + String(err));
+    }
+    throw err;
+  }
+}
+
 // fetch helpers
 async function apiList(){
   const url = `${CFG.API_BASE}?type=listNotebook&sheetId=${encodeURIComponent(CFG.SHEET_ID)}`;
-  const r = await fetch(url, {cache:'no-store'});
-  const t = await r.text();
-  let json;
-  try{ json = JSON.parse(t); }catch(e){
-    // 後端若回傳物件字串化，這裡再解析一次
-    if(t.startsWith('{') && t.includes('"data"')) json = Function('return '+t)();
-  }
-  if(!json || json.ok!==true || !Array.isArray(json.data)) throw new Error('API 回傳非陣列：'+t.slice(0,400));
+  const json = await safeFetchJSON(url);
+  if(!json || json.ok!==true || !Array.isArray(json.data)) throw new Error('API 回傳非陣列');
   return json.data;
 }
 
@@ -178,84 +201,4 @@ async function init(force=false){
 }
 
 init();
-})();
-
-// ===== Bookmark: Single (Last Read) v2 =====
-(function(){
-  const BOOKMARK_KEY = 'nb_bookmark_v2';
-
-  function saveBookmark(articleId, articleTitle){
-    const scrollTop = document.scrollingElement?.scrollTop || window.scrollY || 0;
-    const payload = { id: articleId, title: articleTitle || '', scrollTop, ts: Date.now() };
-    try{ localStorage.setItem(BOOKMARK_KEY, JSON.stringify(payload)); }catch(e){}
-  }
-
-  function getBookmark(){
-    try{
-      const raw = localStorage.getItem(BOOKMARK_KEY);
-      return raw ? JSON.parse(raw) : null;
-    }catch(e){ return null; }
-  }
-
-  // 對外暴露到 window，供現有流程呼叫（若命名衝突則保留既有的）
-  if(!window.NB_BM){
-    window.NB_BM = { saveBookmark, getBookmark };
-  }
-
-  // 綁定書籤按鈕（若存在）
-  const pinBtn = document.getElementById('pinBtn');
-  if(pinBtn){
-    pinBtn.addEventListener('click', () => {
-      try{
-        const titleEl = document.querySelector('#detail h1, #detail .title, #detail [data-title]');
-        const title = titleEl ? (titleEl.textContent || titleEl.innerText || '') : '';
-        if(window.currentArticleId){
-          saveBookmark(window.currentArticleId, title);
-          if(typeof window.showToast === 'function'){ showToast('已設定書籤'); }
-        }
-      }catch(e){}
-    });
-  }
-
-  // 綁定「回到書籤」按鈕（若存在）
-  const backBtn = document.getElementById('goBookmarkBtn');
-  if(backBtn){
-    backBtn.addEventListener('click', () => {
-      const bm = getBookmark();
-      if(!bm){
-        if(typeof window.showToast === 'function'){ showToast('目前沒有書籤'); }
-        return;
-      }
-      // 需要你的 app.js 內已有 openArticleById Promise API 與 currentArticleId
-      if(typeof window.openArticleById === 'function'){
-        window.openArticleById(bm.id).then(() => {
-          requestAnimationFrame(() => window.scrollTo({ top: bm.scrollTop, behavior: 'smooth' }));
-        }).catch(() => {
-          // 若開啟失敗，至少跳到捲動位置
-          requestAnimationFrame(() => window.scrollTo({ top: bm.scrollTop, behavior: 'smooth' }));
-        });
-      }else{
-        // 沒有導航 API，僅嘗試捲動
-        requestAnimationFrame(() => window.scrollTo({ top: bm.scrollTop, behavior: 'smooth' }));
-      }
-    });
-  }
-
-  // 提供一個在文章渲染後可呼叫的 hook（若你在 elsewhere 有掛載，這裡不強制）
-  if(!window.onArticleRendered){
-    window.onArticleRendered = function(article){
-      try{
-        const bm = getBookmark();
-        if(bm && bm.id === article.id){
-          requestAnimationFrame(() => window.scrollTo({ top: bm.scrollTop, behavior: 'instant' }));
-        }
-        let timer;
-        window.addEventListener('scroll', () => {
-          clearTimeout(timer);
-          timer = setTimeout(() => saveBookmark(article.id, article.title || ''), 800);
-        }, { passive: true });
-        window.addEventListener('beforeunload', () => saveBookmark(article.id, article.title || ''));
-      }catch(e){}
-    };
-  }
 })();
