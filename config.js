@@ -5,8 +5,8 @@ window.NB_CFG = {
   IMAGE_FOLDER_ID:'10g4D7PcXHqaPt5KcoRQ2tTz0oaW1Q543',
   TAG_LIMIT:10,
   TITLE:'Notebook',
-  VERSION:'v1.5.2'
+  VERSION:'v1.5.2.3'
 ,
   API_FALLBACK:'',
-  VERSION:'v1.5.2.2'
+  VERSION:'v1.5.2.3'
 };

@@ -1,4 +1,13 @@
 
+// A2HS detection: add class to HTML for standalone adjustments
+(function(){
+  try {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) document.documentElement.classList.add('a2hs');
+  } catch (e) {}
+})();
+
+
 (()=>{
 const $=sel=>document.querySelector(sel);
 const $$=sel=>Array.from(document.querySelectorAll(sel));

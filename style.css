@@ -50,3 +50,13 @@ body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSyst
 
 /* A2HS/Bookmark */
 .tools button#goBookmarkBtn{background:var(--accent);color:#fff}
+
+
+/* iOS A2HS safe area */
+@supports(padding: env(safe-area-inset-top)) {
+  body{ padding-bottom: env(safe-area-inset-bottom); }
+  .appbar{ padding-top: calc(12px + env(safe-area-inset-top)); }
+  .controls{ top: calc(56px + env(safe-area-inset-top)); }
+  .detail-nav{ top: calc(56px + env(safe-area-inset-top)); }
+}
+
