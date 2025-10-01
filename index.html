@@ -1,62 +1,35 @@
 <!doctype html>
 <html lang="zh-TW">
+<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Notebook Rescue</title>
-<style>
-  :root{--bg:#0f141a;--fg:#e8eef5;--muted:#9bb0c0;--card:#15202b;--brand:#4c9aff;--radius:14px;}
-  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--fg)}
-  header{position:sticky;top:0;display:flex;gap:8px;align-items:center;padding:12px;background:var(--bg);border-bottom:1px solid rgba(255,255,255,.08)}
-  input,button{border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--fg);padding:8px 10px;border-radius:10px}
-  input{flex:1}
-  .card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);padding:14px;margin:12px}
-  .err{max-width:760px;margin:24px auto;color:#ffb4b4;white-space:pre-wrap}
-</style>
-<header>
-  <b>Rescue</b>
-  <input id="url" placeholder="貼上 GAS /exec 網址（會記住）">
-  <button id="save">儲存</button>
-  <button id="reload">重載</button>
+<!-- iOS 友善：固定縮放，避免自動放大 -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Notebook 📒 v1.5</title>
+<link rel="stylesheet" href="style.css">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f141a">
+</head>
+<body data-font="medium" class="dark">
+<header class="appbar">
+  <div class="brand">Notebook <span class="ver">v1.5</span> 📒</div>
+  <div class="controls">
+    <button id="themeToggle" class="chip" aria-label="切換深淺色">🌙</button>
+    <button id="fontToggle" class="chip" aria-label="切換字級">中</button>
+    <input id="searchInput" class="search" placeholder="搜尋 標題/內容/標籤…">
+    <button id="refreshBtn" class="chip" title="更新">🔄</button>
+  </div>
 </header>
-<main id="list"></main>
-<pre id="err" class="err"></pre>
-<script>
-(async () => {
-  const $ = sel => document.querySelector(sel);
-  const urlInput = $('#url');
-  const err = $('#err');
-  const list = $('#list');
 
-  // 讀/寫 URL
-  const storeKey = 'NB_BASE_URL';
-  const saved = localStorage.getItem(storeKey) || '';
-  if(saved) urlInput.value = saved;
+<nav id="tagBar" class="tagbar"></nav>
 
-  $('#save').onclick = () => {
-    const u = urlInput.value.trim();
-    if(!u){ alert('請貼上 GAS /exec 網址'); return; }
-    localStorage.setItem(storeKey, u);
-    alert('已存好！按「重載」');
-  };
+<main id="listView" class="view"></main>
+<section id="detailView" class="view hidden"></section>
 
-  $('#reload').onclick = () => load();
+<button id="bookmarkBtn" class="fab" title="書籤">🔖</button>
 
-  async function load(){
-    list.innerHTML = ''; err.textContent='';
-    const base = localStorage.getItem(storeKey);
-    if(!base){ err.textContent = '尚未設定 GAS URL。請貼上你的 /exec 網址，按「儲存」後再按「重載」。'; return; }
-    try{
-      const res = await fetch(base + '?type=listNotebook&nocache=' + Date.now());
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      if(!Array.isArray(data)) throw new Error('回傳不是陣列：\n' + JSON.stringify(data).slice(0,400));
-      if(!data.length){ list.innerHTML = '<div class="card">清單為空（主表目前沒有資料）</div>'; return; }
-      list.innerHTML = data.map(n => '<div class="card"><h3>'+ (n.title||'(無標題)')
-        +'</h3><div>'+ (n.date||'') +'</div><div>'+ (n.tags||'') +'</div><p>'
-        + (n.body||'').replace(/[\n\r]+/g,' ').slice(0,160) +'...</p></div>').join('');
-    }catch(e){
-      err.textContent = '載入失敗\n' + (e && e.stack ? e.stack : e);
-    }
-  }
-  load();
-})();</script>
+<!-- 必須：先載入 config 設定 API -->
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
