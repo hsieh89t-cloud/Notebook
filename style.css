@@ -47,3 +47,9 @@ body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSyst
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center}
 .modal pre{max-width:90vw;max-height:70vh;overflow:auto;background:var(--card);color:var(--fg);padding:12px;border-radius:12px}
 .modal.hidden,.toast.hidden{display:none}
+
+/* Bookmark button style */
+.tools button#goBookmarkBtn {
+  background: var(--accent);
+  color: #fff;
+}

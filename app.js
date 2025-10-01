@@ -179,3 +179,83 @@ async function init(force=false){
 
 init();
 })();
+
+// ===== Bookmark: Single (Last Read) v2 =====
+(function(){
+  const BOOKMARK_KEY = 'nb_bookmark_v2';
+
+  function saveBookmark(articleId, articleTitle){
+    const scrollTop = document.scrollingElement?.scrollTop || window.scrollY || 0;
+    const payload = { id: articleId, title: articleTitle || '', scrollTop, ts: Date.now() };
+    try{ localStorage.setItem(BOOKMARK_KEY, JSON.stringify(payload)); }catch(e){}
+  }
+
+  function getBookmark(){
+    try{
+      const raw = localStorage.getItem(BOOKMARK_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  // 對外暴露到 window，供現有流程呼叫（若命名衝突則保留既有的）
+  if(!window.NB_BM){
+    window.NB_BM = { saveBookmark, getBookmark };
+  }
+
+  // 綁定書籤按鈕（若存在）
+  const pinBtn = document.getElementById('pinBtn');
+  if(pinBtn){
+    pinBtn.addEventListener('click', () => {
+      try{
+        const titleEl = document.querySelector('#detail h1, #detail .title, #detail [data-title]');
+        const title = titleEl ? (titleEl.textContent || titleEl.innerText || '') : '';
+        if(window.currentArticleId){
+          saveBookmark(window.currentArticleId, title);
+          if(typeof window.showToast === 'function'){ showToast('已設定書籤'); }
+        }
+      }catch(e){}
+    });
+  }
+
+  // 綁定「回到書籤」按鈕（若存在）
+  const backBtn = document.getElementById('goBookmarkBtn');
+  if(backBtn){
+    backBtn.addEventListener('click', () => {
+      const bm = getBookmark();
+      if(!bm){
+        if(typeof window.showToast === 'function'){ showToast('目前沒有書籤'); }
+        return;
+      }
+      // 需要你的 app.js 內已有 openArticleById Promise API 與 currentArticleId
+      if(typeof window.openArticleById === 'function'){
+        window.openArticleById(bm.id).then(() => {
+          requestAnimationFrame(() => window.scrollTo({ top: bm.scrollTop, behavior: 'smooth' }));
+        }).catch(() => {
+          // 若開啟失敗，至少跳到捲動位置
+          requestAnimationFrame(() => window.scrollTo({ top: bm.scrollTop, behavior: 'smooth' }));
+        });
+      }else{
+        // 沒有導航 API，僅嘗試捲動
+        requestAnimationFrame(() => window.scrollTo({ top: bm.scrollTop, behavior: 'smooth' }));
+      }
+    });
+  }
+
+  // 提供一個在文章渲染後可呼叫的 hook（若你在 elsewhere 有掛載，這裡不強制）
+  if(!window.onArticleRendered){
+    window.onArticleRendered = function(article){
+      try{
+        const bm = getBookmark();
+        if(bm && bm.id === article.id){
+          requestAnimationFrame(() => window.scrollTo({ top: bm.scrollTop, behavior: 'instant' }));
+        }
+        let timer;
+        window.addEventListener('scroll', () => {
+          clearTimeout(timer);
+          timer = setTimeout(() => saveBookmark(article.id, article.title || ''), 800);
+        }, { passive: true });
+        window.addEventListener('beforeunload', () => saveBookmark(article.id, article.title || ''));
+      }catch(e){}
+    };
+  }
+})();
