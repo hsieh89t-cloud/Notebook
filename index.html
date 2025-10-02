@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.json" />
-  <title>Notebook（v1.0.7 對齊GAS）</title>
+  <title>Notebook（v1.0.7a ID相容熱修）</title>
   <style>
     :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; --danger:#ff9b9b; }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -116,7 +116,6 @@
   </dialog>
 
   <script>
-  // ====== 常數（中文動作名 + 中文欄位名） ======
   const API = "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec";
   const ACT = { list:'列出筆記', get:'取得筆記', create:'新增筆記', update:'修改筆記', delete:'刪除筆記' };
   const KEY = { title:'標題', content:'內容', category:'分類', tags:'標籤', date:'日期', id:'id' };
@@ -135,6 +134,15 @@
     if (d.data && !Array.isArray(d.data)) return d.data;
     return d;
   }
+  function anyId(obj){
+    if (!obj || typeof obj!=='object') return undefined;
+    for (const k of Object.keys(obj)) {
+      const low = k.toLowerCase();
+      if (low==='id' || low.endsWith('id')) return obj[k];
+      if (/筆記.*id/i.test(k) || /note.*id/i.test(k)) return obj[k];
+    }
+    return obj[KEY.id] ?? obj.id;
+  }
   function fmtDate(s) {
     try { const d = new Date(s); if (!isNaN(d.getTime())) return d.toLocaleString('zh-TW', {hour12:false}); return s||''; }
     catch(e){ return s||''; }
@@ -148,12 +156,8 @@
       if (m) return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
     } catch(e){}
     const d = new Date();
-    const y = d.getUTCFullYear();
-    const mm = String(d.getUTCMonth()+1).padStart(2,'0');
-    const dd = String(d.getUTCDate()).padStart(2,'0');
-    const hh = String((d.getUTCHours()+8)%24).padStart(2,'0');
-    const mi = String(d.getUTCMinutes()).padStart(2,'0');
-    const ss = String(d.getUTCSeconds()).padStart(2,'0');
+    const y = d.getUTCFullYear(), mm=String(d.getUTCMonth()+1).padStart(2,'0'), dd=String(d.getUTCDate()).padStart(2,'0');
+    const hh=String((d.getUTCHours()+8)%24).padStart(2,'0'), mi=String(d.getUTCMinutes()).padStart(2,'0'), ss=String(d.getUTCSeconds()).padStart(2,'0');
     return `${y}-${mm}-${dd} ${hh}:${mi}:${ss}`;
   }
   function parseOne(text) {
@@ -179,7 +183,6 @@
     return { 標題, 分類, 標籤, 內容 };
   }
   async function getJson(params){
-    // 讀取類：GET + JSON 解析
     clearErr();
     const url = new URL(API);
     Object.entries(params).forEach(([k,v])=> url.searchParams.set(k, v));
@@ -188,7 +191,6 @@
     try { return JSON.parse(raw); } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
   }
   async function postJson(action, bodyObj){
-    // 寫入類：?action=XXX + POST JSON（只用中文鍵名）
     clearErr();
     const url = new URL(API);
     url.searchParams.set('action', action);
@@ -198,7 +200,13 @@
       body: JSON.stringify(bodyObj||{})
     });
     const raw = await res.text();
-    try { return JSON.parse(raw); } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
+    try { 
+      const j = JSON.parse(raw);
+      if (j && (j.msg||j.message) && /找不到.*ID/i.test(j.msg||j.message)) {
+        showErr('後端回覆：找不到此 ID；我送出的識別碼是：' + (bodyObj.id||bodyObj.ID||bodyObj['筆記ID']||'(空)'));
+      }
+      return j;
+    } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
   }
 
   // ====== 主清單 ======
@@ -223,7 +231,7 @@
       const date  = fmtDate(n[KEY.date] ?? n.date ?? '');
       const cat   = n[KEY.category] ?? n.category ?? '';
       const tags  = n[KEY.tags] ?? n.tags ?? '';
-      const id    = n[KEY.id] ?? n.id;
+      const id    = anyId(n);
       const card = document.createElement('div');
       card.className = 'note';
       card.innerHTML = `
@@ -239,21 +247,24 @@
     });
   }
 
-  // 點卡片開閱讀
+  // 點卡片開閱讀 / 編輯 / 刪除
   list.addEventListener('click', async (e)=> {
     const open = e.target.closest('[data-open]');
     const btn = e.target.closest('button');
     if (open) { openRead(parseInt(open.getAttribute('data-open'), 10)); return; }
     if (!btn) return;
     const id = btn.getAttribute('data-id');
-    if (!id) { showErr('這筆資料缺少 id'); return; }
+    if (!id) { showErr('找不到這筆的識別碼（id）'); return; }
     if (btn.classList.contains('edit')) {
       const d = await getJson({ action: ACT.get, id });
-      const item = normalizeItem(d);
+      const item = normalizeItem(d) || {};
+      // 單筆若沒回 id，補上剛剛點的那個
+      if (anyId(item) == null) item.id = id;
       openEditor(item);
     } else if (btn.classList.contains('del')) {
       if (!confirm('確定要刪除？（將搬到回收）')) return;
-      await postJson(ACT.delete, { id });
+      const body = { id:id, ID:id, '筆記ID':id };
+      await postJson(ACT.delete, body);
       await loadList(q.value.trim());
     }
   });
@@ -274,20 +285,21 @@
   btnCloseRead.addEventListener('click', ()=> dlgRead.close());
   btnEditFromRead.addEventListener('click', async ()=> {
     const n = notes[currentIndex]; if (!n) return;
-    const id = n[KEY.id] ?? n.id;
+    const id = anyId(n);
     const d = await getJson({ action: ACT.get, id });
-    const item = normalizeItem(d);
+    const item = normalizeItem(d) || {};
+    if (anyId(item) == null) item.id = id;
     dlgRead.close();
     openEditor(item);
   });
 
-  // ====== 搜尋、新增、更新按鈕 ======
+  // ====== 搜尋、更新 ======
   btnRefresh.addEventListener('click', ()=> loadList(q.value.trim()));
   q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
   btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
   btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
 
-  // 單框輸入（新增）
+  // ====== 新增（單框） ======
   const dlgNew = document.getElementById('dlgNew');
   btnNew.addEventListener('click', ()=> { fOne.value=''; dlgNew.showModal(); });
   btnCancelNew.addEventListener('click', ()=> dlgNew.close());
@@ -297,15 +309,15 @@
     const data = parseOne(t);
     if (!data.標題) { alert('請加入「標題：」或至少一些內容'); return; }
     const payload = { '日期': nowTaipeiStr(), '分類': data.分類||'', '標籤': data.標籤||'', '標題': data.標題||'', '內容': data.內容||'' };
-    const res = await postJson(ACT.create, payload);
+    await postJson(ACT.create, payload);
     dlgNew.close();
     await loadList(q.value.trim());
   });
 
-  // ====== 編輯視窗 ======
+  // ====== 編輯 ======
   const dlgEdit = document.getElementById('dlgEdit');
   function openEditor(item=null) {
-    editingId = item?.[KEY.id] ?? item?.id ?? null;
+    editingId = anyId(item) ?? null;
     document.getElementById('dlgTitle').textContent = editingId ? '編輯筆記' : '新增筆記';
     fTitle.value    = item?.[KEY.title]    ?? item?.title   ?? '';
     fContent.value  = item?.[KEY.content]  ?? item?.content ?? '';
@@ -317,29 +329,30 @@
   }
   btnCancelEdit.addEventListener('click', ()=> dlgEdit.close());
   btnSaveEdit.addEventListener('click', async ()=> {
-    const payload = {
-      'id': editingId,
-      '標題': fTitle.value.trim(),
+    const title = fTitle.value.trim();
+    if (!title) { alert('請填標題'); return; }
+    if (!editingId) { showErr('缺少 id，無法修改'); return; }
+    const body = {
+      id: editingId, ID: editingId, '筆記ID': editingId,
+      '標題': title,
       '內容': fContent.value.trim(),
       '分類': fCategory.value.trim(),
       '標籤': fTags.value.trim()
-      // 若要同時改日期，可加上 '日期': nowTaipeiStr()
     };
-    if (!payload['標題']) { alert('請填標題'); return; }
-    if (!payload.id) { showErr('缺少 id，無法修改'); return; }
-    await postJson(ACT.update, payload);
+    await postJson(ACT.update, body);
     dlgEdit.close();
     await loadList(q.value.trim());
   });
   btnDelete.addEventListener('click', async ()=> {
     if (!editingId) { showErr('缺少 id，無法刪除'); return; }
     if (!confirm('確定要刪除？（將搬到回收）')) return;
-    await postJson(ACT.delete, { id: editingId });
+    const body = { id: editingId, ID: editingId, '筆記ID': editingId };
+    await postJson(ACT.delete, body);
     dlgEdit.close();
     await loadList(q.value.trim());
   });
 
-  // ====== 自動刷新（每 15 秒） ======
+  // ====== 自動刷新 ======
   function startAuto() {
     if (autoTimer) clearInterval(autoTimer);
     autoTimer = setInterval(()=> loadList(q.value.trim()), 15000);
@@ -361,7 +374,6 @@
   }, {passive:false});
   window.addEventListener('gesturestart', e=> { e.preventDefault(); }, {passive:false});
 
-  // 啟動
   window.addEventListener('load', ()=> {
     if ('serviceWorker' in navigator) try { navigator.serviceWorker.register('./sw.js'); } catch(e){}
     loadList(''); startAuto();
