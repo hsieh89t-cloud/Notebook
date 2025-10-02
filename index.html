@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.json" />
-  <title>Notebook（v1.0.6 自動日期）</title>
+  <title>Notebook（v1.0.6a 自動日期·熱修）</title>
   <style>
     :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -135,12 +135,10 @@
     catch(e){ return s||''; }
   }
   function nowTaipeiStr() {
-    // 取台北時間字串 YYYY-MM-DD HH:mm:ss
     try {
       const fmt = new Intl.DateTimeFormat('zh-TW', { timeZone:'Asia/Taipei', hour12:false,
         year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'
       }).format(new Date());
-      // zh-TW 會像 2025/10/03 14:23:05 → 換成 YYYY-MM-DD HH:mm:ss
       const m = fmt.match(/(\d{4})[\/年\-](\d{2})[\/月\-](\d{2}).(\d{2}):(\d{2}):(\d{2})/);
       if (m) return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
     } catch(e){}
@@ -152,6 +150,28 @@
     const mi = String(d.getUTCMinutes()).padStart(2,'0');
     const ss = String(d.getUTCSeconds()).padStart(2,'0');
     return `${y}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  }
+  function parseOne(text) {
+    const tags = Array.from(text.matchAll(/#([^\s#]+)/g)).map(m=>m[1]);
+    let 標題='', 分類='';
+    const lines = text.split(/\r?\n/);
+    const rest = [];
+    for (let line of lines) {
+      if (!標題) {
+        const m = line.match(/^\s*標題\s*[：:]\s*(.+)$/);
+        if (m) { 標題 = m[1].trim(); continue; }
+      }
+      if (!分類) {
+        const m = line.match(/^\s*分類\s*[：:]\s*(.+)$/);
+        if (m) { 分類 = m[1].trim(); continue; }
+      }
+      const cleaned = line.replace(/#([^\s#]+)/g, '').trimEnd();
+      rest.push(cleaned);
+    }
+    let 內容 = rest.join('\n').trim();
+    if (!標題) 標題 = (內容 || '（無標題）').slice(0, 8);
+    const 標籤 = tags.join(',');
+    return { 標題, 分類, 標籤, 內容 };
   }
   async function callApi(params) {
     const url = new URL(API);
@@ -165,7 +185,7 @@
   let notes = [];
   let editingId = null;
   let currentIndex = -1;
-  let autoTimer = null;
+  let autoTimer = null; // 只宣告一次
 
   async function loadList(keyword='') {
     const data = await callApi({ action: ACT.list, keyword, q: keyword, limit: 200 });
@@ -254,7 +274,7 @@
     if (!t) { alert('請輸入內容'); return; }
     const data = parseOne(t);
     if (!data.標題) { alert('請加入「標題：」或至少一些內容'); return; }
-    data[KEY.date] = nowTaipeiStr(); // 前端自動帶日期（台北）
+    data[KEY.date] = nowTaipeiStr();
     await callApi({ action: ACT.create, ...data });
     dlgNew.close();
     await loadList(q.value.trim());
@@ -280,7 +300,6 @@
     payload[KEY.content]  = fContent.value.trim();
     payload[KEY.category] = fCategory.value.trim();
     payload[KEY.tags]     = fTags.value.trim();
-    // 編輯時不主動改日期，維持後端原邏輯
     if (!payload[KEY.title]) { alert('請填標題'); return; }
     if (editingId) await callApi({ action: ACT.update, id: editingId, ...payload });
     else await callApi({ action: ACT.create, ...payload });
@@ -296,7 +315,6 @@
   });
 
   // ====== 自動刷新（每 15 秒） ======
-  let autoTimer = null;
   function startAuto() {
     if (autoTimer) clearInterval(autoTimer);
     autoTimer = setInterval(()=> loadList(q.value.trim()), 15000);
