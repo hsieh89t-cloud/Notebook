@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.json" />
-  <title>Notebook（v1.0.6b 熱修）</title>
+  <title>Notebook（v1.0.7 對齊GAS）</title>
   <style>
     :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; --danger:#ff9b9b; }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -46,6 +46,7 @@
       <div style="font-weight:800">Notebook</div>
       <span class="chip">左緣→右滑：上一頁</span>
       <span class="chip" id="count">0 筆</span>
+      <button id="btnRefresh" style="margin-left:auto">更新</button>
     </div>
     <div class="row" style="margin-top:6px">
       <input id="q" placeholder="搜尋標題或內容…" />
@@ -126,24 +127,13 @@
   function normalizeList(data) {
     if (Array.isArray(data)) return data;
     if (!data || typeof data !== 'object') return [];
-    return data.items || data.data || data.list || data.records || data.rows || data.notes || [];
+    return data.items || data.data || data.list || data.records || data.rows || data.notes || data.data || [];
   }
   function normalizeItem(d) {
     if (!d) return d;
     if (d.item) return d.item;
     if (d.data && !Array.isArray(d.data)) return d.data;
     return d;
-  }
-  function anyId(obj){
-    if (!obj || typeof obj!=='object') return undefined;
-    const keys = Object.keys(obj);
-    for (const k of keys) {
-      const low = k.toLowerCase();
-      if (low === 'id' || low.endsWith('id')) return obj[k];
-      if (k === 'ID' || k === 'Id') return obj[k];
-      if (/筆記.*id/i.test(k) || /note.*id/i.test(k)) return obj[k];
-    }
-    return obj[KEY.id] ?? obj.id;
   }
   function fmtDate(s) {
     try { const d = new Date(s); if (!isNaN(d.getTime())) return d.toLocaleString('zh-TW', {hour12:false}); return s||''; }
@@ -188,32 +178,27 @@
     const 標籤 = tags.join(',');
     return { 標題, 分類, 標籤, 內容 };
   }
-
-  async function callApi(params, post=false) {
+  async function getJson(params){
+    // 讀取類：GET + JSON 解析
     clearErr();
     const url = new URL(API);
     Object.entries(params).forEach(([k,v])=> url.searchParams.set(k, v));
-    try {
-      let res;
-      if (post) {
-        // 用表單方式 POST，並且 action 也掛在 body
-        const body = new URLSearchParams();
-        Object.entries(params).forEach(([k,v])=> body.append(k, v));
-        res = await fetch(API, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8' }, body });
-      } else {
-        res = await fetch(url.toString(), { method:'GET' });
-      }
-      const raw = await res.text();
-      try {
-        return JSON.parse(raw);
-      } catch(e) {
-        showErr('後端回傳不是 JSON，請截圖給我：', raw);
-        return { error:'not_json', raw };
-      }
-    } catch(err) {
-      showErr('網路或權限錯誤：' + err.message);
-      return { error:'net', detail: err.message };
-    }
+    const res = await fetch(url.toString(), { method:'GET' });
+    const raw = await res.text();
+    try { return JSON.parse(raw); } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
+  }
+  async function postJson(action, bodyObj){
+    // 寫入類：?action=XXX + POST JSON（只用中文鍵名）
+    clearErr();
+    const url = new URL(API);
+    url.searchParams.set('action', action);
+    const res = await fetch(url.toString(), {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json;charset=UTF-8' },
+      body: JSON.stringify(bodyObj||{})
+    });
+    const raw = await res.text();
+    try { return JSON.parse(raw); } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
   }
 
   // ====== 主清單 ======
@@ -223,7 +208,7 @@
   let autoTimer = null;
 
   async function loadList(keyword='') {
-    const data = await callApi({ action: ACT.list, keyword, q: keyword, limit: 200 });
+    const data = await getJson({ action: ACT.list, keyword, q: keyword, limit: 200 });
     notes = normalizeList(data);
     renderList();
   }
@@ -238,7 +223,7 @@
       const date  = fmtDate(n[KEY.date] ?? n.date ?? '');
       const cat   = n[KEY.category] ?? n.category ?? '';
       const tags  = n[KEY.tags] ?? n.tags ?? '';
-      const id    = anyId(n);
+      const id    = n[KEY.id] ?? n.id;
       const card = document.createElement('div');
       card.className = 'note';
       card.innerHTML = `
@@ -261,14 +246,14 @@
     if (open) { openRead(parseInt(open.getAttribute('data-open'), 10)); return; }
     if (!btn) return;
     const id = btn.getAttribute('data-id');
-    if (!id) { showErr('這筆資料缺少 id，先幫我截圖給我。'); return; }
+    if (!id) { showErr('這筆資料缺少 id'); return; }
     if (btn.classList.contains('edit')) {
-      const d = await callApi({ action: ACT.get, id }, false);
+      const d = await getJson({ action: ACT.get, id });
       const item = normalizeItem(d);
       openEditor(item);
     } else if (btn.classList.contains('del')) {
       if (!confirm('確定要刪除？（將搬到回收）')) return;
-      const r = await callApi({ action: ACT.delete, id }, true);
+      await postJson(ACT.delete, { id });
       await loadList(q.value.trim());
     }
   });
@@ -289,14 +274,15 @@
   btnCloseRead.addEventListener('click', ()=> dlgRead.close());
   btnEditFromRead.addEventListener('click', async ()=> {
     const n = notes[currentIndex]; if (!n) return;
-    const id = anyId(n);
-    const d = await callApi({ action: ACT.get, id });
+    const id = n[KEY.id] ?? n.id;
+    const d = await getJson({ action: ACT.get, id });
     const item = normalizeItem(d);
     dlgRead.close();
     openEditor(item);
   });
 
-  // ====== 搜尋、新增 ======
+  // ====== 搜尋、新增、更新按鈕 ======
+  btnRefresh.addEventListener('click', ()=> loadList(q.value.trim()));
   q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
   btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
   btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
@@ -310,16 +296,8 @@
     if (!t) { alert('請輸入內容'); return; }
     const data = parseOne(t);
     if (!data.標題) { alert('請加入「標題：」或至少一些內容'); return; }
-    const 日期 = nowTaipeiStr();
-    const payload = {
-      action: ACT.create,
-      // 中文鍵名
-      [KEY.title]: data.標題, [KEY.content]: data.內容, [KEY.category]: data.分類, [KEY.tags]: data.標籤, [KEY.date]: 日期,
-      // 英文鍵名備援
-      title:data.標題, content:data.內容, category:data.分類, tags:data.標籤, date:日期
-    };
-    await callApi(payload, true); // 主要用 POST
-    await callApi(payload, false); // 備援 GET（有些 GAS 只接 GET）
+    const payload = { '日期': nowTaipeiStr(), '分類': data.分類||'', '標籤': data.標籤||'', '標題': data.標題||'', '內容': data.內容||'' };
+    const res = await postJson(ACT.create, payload);
     dlgNew.close();
     await loadList(q.value.trim());
   });
@@ -327,7 +305,7 @@
   // ====== 編輯視窗 ======
   const dlgEdit = document.getElementById('dlgEdit');
   function openEditor(item=null) {
-    editingId = anyId(item) ?? null;
+    editingId = item?.[KEY.id] ?? item?.id ?? null;
     document.getElementById('dlgTitle').textContent = editingId ? '編輯筆記' : '新增筆記';
     fTitle.value    = item?.[KEY.title]    ?? item?.title   ?? '';
     fContent.value  = item?.[KEY.content]  ?? item?.content ?? '';
@@ -339,36 +317,24 @@
   }
   btnCancelEdit.addEventListener('click', ()=> dlgEdit.close());
   btnSaveEdit.addEventListener('click', async ()=> {
-    const payload = {};
-    payload[KEY.title]    = fTitle.value.trim();
-    payload[KEY.content]  = fContent.value.trim();
-    payload[KEY.category] = fCategory.value.trim();
-    payload[KEY.tags]     = fTags.value.trim();
-    if (!payload[KEY.title]) { alert('請填標題'); return; }
-    if (editingId) {
-      // 同步送中英鍵 + id
-      const body = { action: ACT.update, id: editingId, ...payload,
-        title:payload[KEY.title], content:payload[KEY.content], category:payload[KEY.category], tags:payload[KEY.tags]
-      };
-      await callApi(body, true);
-      await callApi(body, false);
-    } else {
-      const 日期 = nowTaipeiStr();
-      const body = { action: ACT.create, ...payload, [KEY.date]:日期,
-        title:payload[KEY.title], content:payload[KEY.content], category:payload[KEY.category], tags:payload[KEY.tags], date:日期
-      };
-      await callApi(body, true);
-      await callApi(body, false);
-    }
+    const payload = {
+      'id': editingId,
+      '標題': fTitle.value.trim(),
+      '內容': fContent.value.trim(),
+      '分類': fCategory.value.trim(),
+      '標籤': fTags.value.trim()
+      // 若要同時改日期，可加上 '日期': nowTaipeiStr()
+    };
+    if (!payload['標題']) { alert('請填標題'); return; }
+    if (!payload.id) { showErr('缺少 id，無法修改'); return; }
+    await postJson(ACT.update, payload);
     dlgEdit.close();
     await loadList(q.value.trim());
   });
   btnDelete.addEventListener('click', async ()=> {
-    if (!editingId) { showErr('這筆資料缺少 id，無法刪除'); return; }
+    if (!editingId) { showErr('缺少 id，無法刪除'); return; }
     if (!confirm('確定要刪除？（將搬到回收）')) return;
-    const body = { action: ACT.delete, id: editingId };
-    await callApi(body, true);
-    await callApi(body, false);
+    await postJson(ACT.delete, { id: editingId });
     dlgEdit.close();
     await loadList(q.value.trim());
   });
