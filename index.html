@@ -5,30 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.json" />
-  <title>Notebook（v1.0.3）</title>
+  <title>Notebook（v1.0.4）</title>
   <style>
-    :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; }
+    :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: -apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC',system-ui,sans-serif; height:100%; }
     body { touch-action: manipulation; }
-    header { position:sticky; top:0; z-index:10; background:var(--bg); padding:10px 10px 6px; border-bottom:1px solid #222; }
+    header { position:sticky; top:0; z-index:10; background:var(--bg); padding:10px 10px 6px; border-bottom:1px solid var(--border); }
     .row { display:flex; gap:8px; align-items:center; }
     input, textarea { width:100%; background:#000; color:var(--fg); border:1px solid #333; padding:12px 14px; border-radius:12px; }
     input::placeholder, textarea::placeholder { color:#555; }
-    button { background:#222; color:var(--fg); border:1px solid #333; padding:12px 14px; border-radius:12px; font-weight:600; }
+    button { background:#222; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:12px; font-weight:600; }
     button:active { transform: scale(0.98); }
     main { padding:10px 8px 22vh; }
-    .note { background:var(--card); border:1px solid #222; border-radius:12px; padding:12px; margin:8px 4px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-    .title { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
-    .meta { color:var(--muted); font-size:12px; }
-    .chip { font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid #333; color:#9aa0a6; }
+    .note { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px; margin:10px 4px; display:flex; gap:10px; }
+    .note-body { flex:1; min-width:0; }
+    .title { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; font-weight:700; font-size:16px; line-height:1.25; }
+    .meta { color:var(--muted); font-size:12px; margin-top:4px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+    .actions { display:flex; flex-direction:column; gap:6px; }
+    .empty { color:var(--muted); text-align:center; margin-top:18px; }
     .fab { position:fixed; right:16px; bottom:16px; background:#2a2a2a; border:1px solid #333; border-radius:16px; padding:12px 14px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
-    dialog { width:min(640px,92vw); background:var(--card); color:var(--fg); border:1px solid #333; border-radius:14px; padding:0; }
+    .fab span { font-size:14px; }
+    dialog { width:min(680px, 94vw); background:var(--card); color:var(--fg); border:1px solid #333; border-radius:14px; padding:0; }
     dialog::backdrop { background:rgba(0,0,0,.6); }
-    .dlg-head { padding:12px 14px; border-bottom:1px solid #333; font-weight:700; }
+    .dlg-head { padding:12px 14px; border-bottom:1px solid #333; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .dlg-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
     .dlg-foot { display:flex; gap:8px; justify-content:flex-end; padding:10px 14px; border-top:1px solid #333; }
-    .empty { color:var(--muted); text-align:center; margin-top:18px; }
+    .chip { font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid #333; color:#9aa0a6; }
+    .read-title { font-weight:800; font-size:18px; line-height:1.35; word-break:break-word; }
+    .read-meta { color:var(--muted); font-size:12px; }
+    .read-content { white-space:pre-wrap; word-break:break-word; line-height:1.6; }
+    .read-nav { display:flex; justify-content:space-between; gap:8px; }
   </style>
 </head>
 <body>
@@ -49,7 +56,8 @@
 
   <button class="fab" id="btnNew"><span>＋ 新增</span></button>
 
-  <dialog id="dlg">
+  <!-- 編輯視窗 -->
+  <dialog id="dlgEdit">
     <div class="dlg-head" id="dlgTitle">新增筆記</div>
     <div class="dlg-body">
       <input id="fTitle" placeholder="標題（必填）" />
@@ -62,6 +70,27 @@
       <button id="btnDelete" style="display:none">刪除</button>
       <button id="btnCancel">取消</button>
       <button id="btnSave">儲存</button>
+    </div>
+  </dialog>
+
+  <!-- 閱讀視窗 -->
+  <dialog id="dlgRead">
+    <div class="dlg-head">
+      <span>閱讀</span>
+      <div class="read-nav">
+        <button id="btnPrev">上一則</button>
+        <button id="btnNext">下一則</button>
+      </div>
+    </div>
+    <div class="dlg-body">
+      <div class="read-title" id="rTitle"></div>
+      <div class="read-meta" id="rMeta"></div>
+      <div class="read-content" id="rContent"></div>
+      <div class="read-meta" id="rTags"></div>
+    </div>
+    <div class="dlg-foot">
+      <button id="btnCloseRead">關閉</button>
+      <button id="btnEditFromRead">編輯這則</button>
     </div>
   </dialog>
 
@@ -83,6 +112,15 @@
     if (d.data && !Array.isArray(d.data)) return d.data;
     return d;
   }
+  function fmtDate(s) {
+    try {
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString('zh-TW', { hour12:false });
+      }
+      return s || '';
+    } catch(e){ return s || ''; }
+  }
   async function callApi(params) {
     const url = new URL(API);
     Object.entries(params).forEach(([k,v])=> url.searchParams.set(k, v));
@@ -94,6 +132,7 @@
   // ====== 主清單 ======
   let notes = [];
   let editingId = null;
+  let currentIndex = -1;
 
   async function loadList(keyword='') {
     const data = await callApi({ action: ACT.list, keyword, q: keyword, limit: 200 });
@@ -109,16 +148,16 @@
       el.innerHTML = '<div class="empty">沒有資料</div>';
       return;
     }
-    for (const n of notes) {
+    notes.forEach((n, idx)=> {
       const title = n[KEY.title] ?? n.title ?? '(無標題)';
-      const date  = n[KEY.date]  ?? n.date  ?? '';
+      const date  = fmtDate(n[KEY.date] ?? n.date ?? '');
       const cat   = n[KEY.category] ?? n.category ?? '';
-      const tags  = n[KEY.tags]  ?? n.tags  ?? '';
-      const id    = n[KEY.id]    ?? n.id;
-      const div = document.createElement('div');
-      div.className = 'note';
-      div.innerHTML = `
-        <div>
+      const tags  = n[KEY.tags] ?? n.tags ?? '';
+      const id    = n[KEY.id] ?? n.id;
+      const card = document.createElement('div');
+      card.className = 'note';
+      card.innerHTML = `
+        <div class="note-body" data-open="${idx}">
           <div class="title">${title}</div>
           <div class="meta">${date}${cat?' · '+cat:''}${tags?' · '+tags:''}</div>
         </div>
@@ -126,19 +165,19 @@
           <button data-id="${id}" class="edit">編輯</button>
           <button data-id="${id}" class="del">刪除</button>
         </div>`;
-      el.appendChild(div);
-    }
+      el.appendChild(card);
+    });
   }
 
-  // ====== 事件：搜尋、清空、新增 ======
-  q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
-  btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
-  btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
-  btnNew.addEventListener('click', ()=> openEditor());
-
-  // ====== 列表按鈕 ======
+  // 點卡片開閱讀
   list.addEventListener('click', async (e)=> {
-    const btn = e.target.closest('button'); if (!btn) return;
+    const open = e.target.closest('[data-open]');
+    const btn = e.target.closest('button');
+    if (open) {
+      openRead(parseInt(open.getAttribute('data-open'), 10));
+      return;
+    }
+    if (!btn) return;
     const id = btn.getAttribute('data-id');
     if (btn.classList.contains('edit')) {
       const d = await callApi({ action: ACT.get, id });
@@ -151,8 +190,37 @@
     }
   });
 
-  // ====== 編輯器 ======
-  const dlg = document.getElementById('dlg');
+  // ====== 閱讀視窗 ======
+  const dlgRead = document.getElementById('dlgRead');
+  function openRead(idx) {
+    currentIndex = idx;
+    const n = notes[idx]; if (!n) return;
+    rTitle.textContent = n[KEY.title] ?? n.title ?? '(無標題)';
+    rMeta.textContent = [fmtDate(n[KEY.date] ?? n.date ?? ''), (n[KEY.category] ?? n.category ?? '')].filter(Boolean).join(' · ');
+    rContent.textContent = (n[KEY.content] ?? n.content ?? '');
+    rTags.textContent = (n[KEY.tags] ?? n.tags ?? '') ? '標籤：' + (n[KEY.tags] ?? n.tags ?? '') : '';
+    dlgRead.showModal();
+  }
+  btnPrev.addEventListener('click', ()=> { if (currentIndex>0) openRead(currentIndex-1); });
+  btnNext.addEventListener('click', ()=> { if (currentIndex<notes.length-1) openRead(currentIndex+1); });
+  btnCloseRead.addEventListener('click', ()=> dlgRead.close());
+  btnEditFromRead.addEventListener('click', async ()=> {
+    const n = notes[currentIndex]; if (!n) return;
+    const id = n[KEY.id] ?? n.id;
+    const d = await callApi({ action: ACT.get, id });
+    const item = normalizeItem(d);
+    dlgRead.close();
+    openEditor(item);
+  });
+
+  // ====== 搜尋、新增 ======
+  q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
+  btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
+  btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
+  btnNew.addEventListener('click', ()=> openEditor());
+
+  // ====== 編輯視窗 ======
+  const dlgEdit = document.getElementById('dlgEdit');
   function openEditor(item=null) {
     editingId = item?.[KEY.id] ?? item?.id ?? null;
     document.getElementById('dlgTitle').textContent = editingId ? '編輯筆記' : '新增筆記';
@@ -160,11 +228,11 @@
     fContent.value  = item?.[KEY.content]  ?? item?.content ?? '';
     fCategory.value = item?.[KEY.category] ?? item?.category?? '';
     fTags.value     = item?.[KEY.tags]     ?? item?.tags    ?? '';
-    fDate.value     = item?.[KEY.date]     ?? item?.date    ?? new Date().toISOString().slice(0,10);
+    fDate.value     = fmtDate(item?.[KEY.date] ?? item?.date ?? new Date().toISOString().slice(0,10));
     btnDelete.style.display = editingId ? '' : 'none';
-    dlg.showModal();
+    dlgEdit.showModal();
   }
-  btnCancel.addEventListener('click', ()=> dlg.close());
+  btnCancel.addEventListener('click', ()=> dlgEdit.close());
   btnSave.addEventListener('click', async ()=> {
     const payload = {};
     payload[KEY.title]    = fTitle.value.trim();
@@ -174,14 +242,14 @@
     if (!payload[KEY.title]) { alert('請填標題'); return; }
     if (editingId) await callApi({ action: ACT.update, id: editingId, ...payload });
     else await callApi({ action: ACT.create, ...payload });
-    dlg.close();
+    dlgEdit.close();
     await loadList(q.value.trim());
   });
   btnDelete.addEventListener('click', async ()=> {
     if (!editingId) return;
     if (!confirm('確定要刪除？（將搬到回收）')) return;
     await callApi({ action: ACT.delete, id: editingId });
-    dlg.close();
+    dlgEdit.close();
     await loadList(q.value.trim());
   });
 
