@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.json" />
+  <title>Notebook（簡單版‧偵錯版）</title>
+  <style>
+    :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: -apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC',system-ui,sans-serif; height:100%; }
+    body { touch-action: manipulation; }
+    header { position:sticky; top:0; z-index:10; background:var(--bg); padding:10px 10px 6px; border-bottom:1px solid #222; }
+    .row { display:flex; gap:8px; align-items:center; }
+    input, textarea, select { width:100%; background:#000; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:10px; }
+    input::placeholder, textarea::placeholder { color:#555; }
+    button { background:#222; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:10px; font-weight:600; }
+    button:active { transform: scale(0.98); }
+    main { padding:10px 8px 22vh; }
+    .note { background:var(--card); border:1px solid #222; border-radius:12px; padding:12px; margin:8px 4px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .title { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
+    .meta { color:var(--muted); font-size:12px; }
+    .chip { font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid #333; color:#9aa0a6; }
+    .fab { position:fixed; right:16px; bottom:16px; background:#2a2a2a; border:1px solid #333; border-radius:16px; padding:12px 14px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+    dialog { width:min(640px,92vw); background:var(--card); color:var(--fg); border:1px solid #333; border-radius:14px; padding:0; }
+    dialog::backdrop { background:rgba(0,0,0,.6); }
+    .dlg-head { padding:12px 14px; border-bottom:1px solid #333; font-weight:700; }
+    .dlg-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
+    .dlg-foot { display:flex; gap:8px; justify-content:flex-end; padding:10px 14px; border-top:1px solid #333; }
+    .panel { margin:8px; border:1px solid #333; border-radius:12px; background:#121212; }
+    .panel h3 { margin:0; padding:10px 12px; border-bottom:1px solid #333; font-size:14px; }
+    .panel .body { padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; background:#0b0b0b; padding:8px; border-radius:8px; border:1px solid #222; color:#cfcfcf; }
+    .danger { color:#ff9b9b; }
+    .ok { color:#97f79b; }
+    .actions { display:flex; gap:6px; }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="row">
+      <div style="font-weight:800">Notebook</div>
+      <span class="chip" id="count">0 筆</span>
+      <span class="chip">左緣→右滑：上一頁</span>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <input id="q" placeholder="搜尋標題或內容…" />
+      <button id="btnSearch">搜尋</button>
+      <button id="btnClear">清空</button>
+      <button id="btnDiag">健檢</button>
+    </div>
+  </header>
+
+  <main id="list"></main>
+
+  <button class="fab" id="btnNew"><span>＋ 新增</span></button>
+
+  <dialog id="dlg">
+    <div class="dlg-head" id="dlgTitle">新增筆記</div>
+    <div class="dlg-body">
+      <input id="fTitle" placeholder="標題（必填）" />
+      <textarea id="fContent" rows="8" placeholder="內容"></textarea>
+      <input id="fCategory" placeholder="分類（選填）" />
+      <input id="fTags" placeholder="標籤（以逗號分隔，可留空）" />
+      <input id="fDate" placeholder="日期（自動，不需填）" disabled />
+    </div>
+    <div class="dlg-foot">
+      <button id="btnDelete" class="hidden">刪除</button>
+      <button id="btnCancel">取消</button>
+      <button id="btnSave">儲存</button>
+    </div>
+  </dialog>
+
+  <dialog id="diag">
+    <div class="dlg-head">健檢面板</div>
+    <div class="dlg-body">
+      <div class="panel">
+        <h3>一、設定（可即時修改）</h3>
+        <div class="body grid">
+          <label>API URL<input id="cfg_api" /></label>
+          <label>action 列出<input id="cfg_act_list" /></label>
+          <label>action 取得<input id="cfg_act_get" /></label>
+          <label>action 新增<input id="cfg_act_create" /></label>
+          <label>action 更新<input id="cfg_act_update" /></label>
+          <label>action 刪除<input id="cfg_act_delete" /></label>
+          <label>欄位_標題<input id="cfg_k_title" /></label>
+          <label>欄位_內容<input id="cfg_k_content" /></label>
+          <label>欄位_分類<input id="cfg_k_category" /></label>
+          <label>欄位_標籤<input id="cfg_k_tags" /></label>
+          <label>欄位_日期<input id="cfg_k_date" /></label>
+          <label>欄位_ID<input id="cfg_k_id" /></label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>二、快速測試</h3>
+        <div class="body actions">
+          <button id="t_list">測試列出</button>
+          <button id="t_get">測試取得（取第一筆）</button>
+          <button id="t_create">測試新增</button>
+          <button id="t_update">測試更新（改第一筆標題）</button>
+          <button id="t_delete">測試刪除（刪第一筆）</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>三、結果</h3>
+        <div class="body">
+          <div>請求 URL：</div>
+          <div id="out_url" class="mono"></div>
+          <div>原始回傳：</div>
+          <div id="out_raw" class="mono"></div>
+          <div>解析後列數：<span id="out_count" class="ok">0</span></div>
+          <div class="actions">
+            <button id="btnCopyRaw">複製原始回傳</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button id="btnCloseDiag">關閉</button>
+      <button id="btnApplyCfg">套用設定</button>
+    </div>
+  </dialog>
+
+  <script>
+  // ====== 預設設定（可在健檢面板改） ======
+  const CFG = {
+    api: "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec",
+    act: { list: "list", get: "get", create: "create", update: "update", delete: "delete" },
+    key: { title: "標題", content: "內容", category: "分類", tags: "標籤", date: "日期", id: "id" }
+  };
+
+  // ====== 工具 ======
+  function normalizeList(data) {
+    if (Array.isArray(data)) return data;
+    if (!data || typeof data !== 'object') return [];
+    return data.items || data.data || data.list || data.records || data.rows || data.notes || [];
+  }
+  function normalizeItem(d) {
+    if (!d) return d;
+    if (d.item) return d.item;
+    if (d.data && !Array.isArray(d.data)) return d.data;
+    return d;
+  }
+  async function callApi(params) {
+    const url = new URL(CFG.api);
+    Object.entries(params).forEach(([k,v])=> url.searchParams.set(k, v));
+    const s = url.toString();
+    const res = await fetch(s, { method: 'GET' });
+    document.getElementById('out_url').textContent = s;
+    const raw = await res.text();
+    document.getElementById('out_raw').textContent = raw;
+    try {
+      return JSON.parse(raw);
+    } catch(e) {
+      return { error: 'JSON 解析失敗', raw };
+    }
+  }
+  function getKey(obj, name) {
+    return obj[name] ?? obj[ ({標題:'title', 內容:'content', 分類:'category', 標籤:'tags', 日期:'date', id:'id'})[name] ];
+  }
+
+  // ====== 主清單 ======
+  let notes = [];
+  let editingId = null;
+
+  async function loadList(keyword='') {
+    const data = await callApi({ action: CFG.act.list, keyword, q: keyword, limit: 200 });
+    notes = normalizeList(data);
+    renderList();
+  }
+  function renderList() {
+    const el = document.getElementById('list');
+    el.innerHTML = '';
+    const count = notes.length || 0;
+    document.getElementById('count').textContent = count + ' 筆';
+    if (!count) {
+      el.innerHTML = '<div class="meta" style="text-align:center;margin-top:18px;">沒有資料（試按右上角「健檢」看原始回傳）</div>';
+      return;
+    }
+    for (const n of notes) {
+      const title = n[CFG.key.title] ?? n.title ?? '(無標題)';
+      const date  = n[CFG.key.date]  ?? n.date  ?? '';
+      const cat   = n[CFG.key.category] ?? n.category ?? '';
+      const tags  = n[CFG.key.tags]  ?? n.tags  ?? '';
+      const id    = n[CFG.key.id]    ?? n.id;
+      const div = document.createElement('div');
+      div.className = 'note';
+      div.innerHTML = `
+        <div>
+          <div class="title">${title}</div>
+          <div class="meta">${date}${cat?' · '+cat:''}${tags?' · '+tags:''}</div>
+        </div>
+        <div class="actions">
+          <button data-id="${id}" class="edit">編輯</button>
+          <button data-id="${id}" class="del">刪除</button>
+        </div>`;
+      el.appendChild(div);
+    }
+  }
+
+  // ====== 事件：搜尋、清空、新增 ======
+  q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
+  btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
+  btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
+  btnNew.addEventListener('click', ()=> openEditor());
+
+  // ====== 列表按鈕 ======
+  list.addEventListener('click', async (e)=> {
+    const btn = e.target.closest('button'); if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    if (btn.classList.contains('edit')) {
+      const d = await callApi({ action: CFG.act.get, id });
+      const item = normalizeItem(d);
+      openEditor(item);
+    } else if (btn.classList.contains('del')) {
+      if (!confirm('確定要刪除？（將搬到回收）')) return;
+      await callApi({ action: CFG.act.delete, id });
+      await loadList(q.value.trim());
+    }
+  });
+
+  // ====== 編輯器 ======
+  const dlg = document.getElementById('dlg');
+  function openEditor(item=null) {
+    editingId = item?.[CFG.key.id] ?? item?.id ?? null;
+    document.getElementById('dlgTitle').textContent = editingId ? '編輯筆記' : '新增筆記';
+    fTitle.value    = item?.[CFG.key.title]    ?? item?.title   ?? '';
+    fContent.value  = item?.[CFG.key.content]  ?? item?.content ?? '';
+    fCategory.value = item?.[CFG.key.category] ?? item?.category?? '';
+    fTags.value     = item?.[CFG.key.tags]     ?? item?.tags    ?? '';
+    fDate.value     = item?.[CFG.key.date]     ?? item?.date    ?? new Date().toISOString().slice(0,10);
+    btnDelete.classList.toggle('hidden', !editingId);
+    dlg.showModal();
+  }
+  btnCancel.addEventListener('click', ()=> dlg.close());
+  btnSave.addEventListener('click', async ()=> {
+    const payload = {};
+    payload[CFG.key.title]    = fTitle.value.trim();
+    payload[CFG.key.content]  = fContent.value.trim();
+    payload[CFG.key.category] = fCategory.value.trim();
+    payload[CFG.key.tags]     = fTags.value.trim();
+    if (!payload[CFG.key.title]) { alert('請填標題'); return; }
+    if (editingId) await callApi({ action: CFG.act.update, id: editingId, ...payload });
+    else await callApi({ action: CFG.act.create, ...payload });
+    dlg.close();
+    await loadList(q.value.trim());
+  });
+  btnDelete.addEventListener('click', async ()=> {
+    if (!editingId) return;
+    if (!confirm('確定要刪除？（將搬到回收）')) return;
+    await callApi({ action: CFG.act.delete, id: editingId });
+    dlg.close();
+    await loadList(q.value.trim());
+  });
+
+  // ====== 健檢面板 ======
+  function openDiag() {
+    cfg_api.value = CFG.api;
+    cfg_act_list.value = CFG.act.list;
+    cfg_act_get.value = CFG.act.get;
+    cfg_act_create.value = CFG.act.create;
+    cfg_act_update.value = CFG.act.update;
+    cfg_act_delete.value = CFG.act.delete;
+    cfg_k_title.value = CFG.key.title;
+    cfg_k_content.value = CFG.key.content;
+    cfg_k_category.value = CFG.key.category;
+    cfg_k_tags.value = CFG.key.tags;
+    cfg_k_date.value = CFG.key.date;
+    cfg_k_id.value = CFG.key.id;
+    diag.showModal();
+  }
+  function applyCfg() {
+    CFG.api = cfg_api.value.trim() || CFG.api;
+    CFG.act.list   = cfg_act_list.value.trim()   || CFG.act.list;
+    CFG.act.get    = cfg_act_get.value.trim()    || CFG.act.get;
+    CFG.act.create = cfg_act_create.value.trim() || CFG.act.create;
+    CFG.act.update = cfg_act_update.value.trim() || CFG.act.update;
+    CFG.act.delete = cfg_act_delete.value.trim() || CFG.act.delete;
+    CFG.key.title    = cfg_k_title.value.trim()    || CFG.key.title;
+    CFG.key.content  = cfg_k_content.value.trim()  || CFG.key.content;
+    CFG.key.category = cfg_k_category.value.trim() || CFG.key.category;
+    CFG.key.tags     = cfg_k_tags.value.trim()     || CFG.key.tags;
+    CFG.key.date     = cfg_k_date.value.trim()     || CFG.key.date;
+    CFG.key.id       = cfg_k_id.value.trim()       || CFG.key.id;
+  }
+  btnDiag.addEventListener('click', openDiag);
+  btnCloseDiag.addEventListener('click', ()=> diag.close());
+  btnApplyCfg.addEventListener('click', ()=> { applyCfg(); alert('已套用設定'); });
+
+  function setOut(res) {
+    try {
+      const list = normalizeList(res);
+      out_count.textContent = Array.isArray(list) ? list.length : 0;
+    } catch(e) {
+      out_count.textContent = '0';
+    }
+  }
+
+  t_list.addEventListener('click', async ()=> { const r = await callApi({ action: CFG.act.list, keyword:q.value.trim(), q:q.value.trim(), limit:5 }); setOut(r); });
+  t_get.addEventListener('click', async ()=> {
+    const r = await callApi({ action: CFG.act.list, limit:1 });
+    const arr = normalizeList(r); const first = arr[0];
+    if (!first) { alert('沒有資料可取'); return; }
+    const id = first[CFG.key.id] ?? first.id;
+    const r2 = await callApi({ action: CFG.act.get, id });
+    setOut(r2);
+  });
+  t_create.addEventListener('click', async ()=> { const r = await callApi({ action: CFG.act.create, [CFG.key.title]:'[測試] ' + Date.now(), [CFG.key.content]:'diagnostic', [CFG.key.category]:'測試', [CFG.key.tags]:'debug' }); setOut(r); });
+  t_update.addEventListener('click', async ()=> {
+    const r = await callApi({ action: CFG.act.list, limit:1 });
+    const arr = normalizeList(r); const first = arr[0];
+    if (!first) { alert('沒有資料可改'); return; }
+    const id = first[CFG.key.id] ?? first.id;
+    const r2 = await callApi({ action: CFG.act.update, id, [CFG.key.title]:'[已更新] ' + Date.now() });
+    setOut(r2);
+  });
+  t_delete.addEventListener('click', async ()=> {
+    const r = await callApi({ action: CFG.act.list, limit:1 });
+    const arr = normalizeList(r); const first = arr[0];
+    if (!first) { alert('沒有資料可刪'); return; }
+    const id = first[CFG.key.id] ?? first.id;
+    const r2 = await callApi({ action: CFG.act.delete, id });
+    setOut(r2);
+  });
+  btnCopyRaw.addEventListener('click', async ()=> {
+    try { await navigator.clipboard.writeText(out_raw.textContent); alert('已複製原始回傳'); } catch(e) { alert('複製失敗，請手動選取'); }
+  });
+
+  // ====== 手勢：右滑返回、關雙擊放大與捏合 ======
+  let startX=0, startY=0, moved=false, lastTouchEnd=0;
+  window.addEventListener('touchstart', (e)=> { const t=e.touches[0]; startX=t.clientX; startY=t.clientY; moved=false; }, {passive:true});
+  window.addEventListener('touchmove', ()=> { moved=true; }, {passive:true});
+  window.addEventListener('touchend', (e)=> {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) { e.preventDefault(); }
+    lastTouchEnd = now;
+    if (!moved) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = Math.abs(t.clientY - startY);
+    if (dx > 80 && dy < 50 && startX < 80) history.back();
+  }, {passive:false});
+  window.addEventListener('gesturestart', e=> { e.preventDefault(); }, {passive:false});
+
+  // 啟動
+  window.addEventListener('load', ()=> { if ('serviceWorker' in navigator) try { navigator.serviceWorker.register('./sw.js'); } catch(e){}; loadList(''); });
+  </script>
+</body>
+</html>
