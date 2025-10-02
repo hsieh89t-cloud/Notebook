@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.json" />
+  <title>Notebook（簡單版）</title>
+  <style>
+    :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --accent:#e0e0e0; --card:#1a1a1a; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Noto Sans TC', system-ui, sans-serif; height:100%; }
+    header { position:sticky; top:0; z-index:10; background:var(--bg); padding:12px 12px 8px; border-bottom:1px solid #222; }
+    .row { display:flex; gap:8px; align-items:center; }
+    input, textarea { width:100%; background:#000; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:10px; }
+    input::placeholder, textarea::placeholder { color:#555; }
+    button { background:#222; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:10px; }
+    button:active { transform: scale(0.98); }
+    main { padding:10px 8px 20vh; }
+    .note { background:var(--card); border:1px solid #222; border-radius:12px; padding:12px; margin:8px 4px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .title { flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
+    .meta { color:var(--muted); font-size:12px; }
+    .actions { display:flex; gap:6px; }
+    .empty { color:var(--muted); text-align:center; margin-top:24px; }
+    .fab { position:fixed; right:16px; bottom:16px; background:#2a2a2a; border:1px solid #333; border-radius:16px; padding:12px 14px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+    .fab span { font-size:14px; }
+    dialog { width:min(640px, 92vw); background:var(--card); color:var(--fg); border:1px solid #333; border-radius:14px; padding:0; }
+    dialog::backdrop { background:rgba(0,0,0,.6); }
+    .dlg-head { padding:12px 14px; border-bottom:1px solid #333; font-weight:700; }
+    .dlg-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
+    .dlg-foot { display:flex; gap:8px; justify-content:flex-end; padding:10px 14px; border-top:1px solid #333; }
+    .chip { font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid #333; color:var(--muted); }
+    .topbar { display:flex; gap:8px; align-items:center; }
+    .logo { font-weight:800; letter-spacing:.5px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div class="logo">Notebook</div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="q" placeholder="搜尋標題或內容…" />
+      <button id="btnSearch">搜尋</button>
+      <button id="btnClear">清空</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <span class="chip">右滑可返回上一頁</span>
+      <span class="chip" id="count">0 筆</span>
+    </div>
+  </header>
+
+  <main id="list"></main>
+
+  <button class="fab" id="btnNew"><span>＋ 新增</span></button>
+
+  <dialog id="dlg">
+    <div class="dlg-head" id="dlgTitle">新增筆記</div>
+    <div class="dlg-body">
+      <input id="fTitle" placeholder="標題（必填）" />
+      <textarea id="fContent" rows="8" placeholder="內容"></textarea>
+      <input id="fCategory" placeholder="分類（選填）" />
+      <input id="fTags" placeholder="標籤（以逗號分隔，可留空）" />
+      <input id="fDate" placeholder="日期（自動，不需填）" disabled />
+    </div>
+    <div class="dlg-foot">
+      <button id="btnDelete" style="display:none">刪除</button>
+      <button id="btnCancel">取消</button>
+      <button id="btnSave">儲存</button>
+    </div>
+  </dialog>
+
+  <script>
+  const API = "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec".trim();
+  let notes = [];
+  let editingId = null;
+
+  async function callApi(params) {
+    const url = new URL(API);
+    Object.entries(params).forEach(([k,v])=> url.searchParams.set(k, v));
+    const res = await fetch(url.toString(), { method: 'GET' });
+    if (!res.ok) throw new Error('網路錯誤');
+    return res.json();
+  }
+
+  async function loadList(keyword='') {
+    const data = await callApi({ action:'list', keyword, limit: 200 });
+    notes = data.items || data.data || [];
+    renderList();
+  }
+
+  function renderList() {
+    const el = document.getElementById('list');
+    el.innerHTML = '';
+    if (!notes.length) {
+      el.innerHTML = '<div class="empty">沒有資料</div>';
+      document.getElementById('count').textContent = '0 筆';
+      return;
+    }
+    document.getElementById('count').textContent = notes.length + ' 筆';
+    for (const n of notes) {
+      const div = document.createElement('div');
+      div.className = 'note';
+      div.innerHTML = \`
+        <div>
+          <div class="title">\${n.標題 || n.title || '(無標題)'}</div>
+          <div class="meta">\${n.日期 || n.date || ''} · \${n.分類 || n.category || ''} · \${n.標籤 || n.tags || ''}</div>
+        </div>
+        <div class="actions">
+          <button data-id="\${n.id}" class="edit">編輯</button>
+          <button data-id="\${n.id}" class="del">刪除</button>
+        </div>\`;
+      el.appendChild(div);
+    }
+  }
+
+  // 事件
+  document.getElementById('btnSearch').addEventListener('click', ()=> {
+    const kw = document.getElementById('q').value.trim();
+    loadList(kw);
+  });
+  document.getElementById('btnClear').addEventListener('click', ()=> {
+    document.getElementById('q').value = '';
+    loadList('');
+  });
+  document.getElementById('btnNew').addEventListener('click', ()=> openEditor());
+
+  document.getElementById('list').addEventListener('click', async (e)=> {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    if (btn.classList.contains('edit')) {
+      const d = await callApi({ action:'get', id });
+      const item = d.item || d.data || d;
+      openEditor(item);
+    } else if (btn.classList.contains('del')) {
+      if (!confirm('確定要刪除？（將搬到回收）')) return;
+      await callApi({ action:'delete', id });
+      await loadList(document.getElementById('q').value.trim());
+    }
+  });
+
+  // 編輯器
+  const dlg = document.getElementById('dlg');
+  function openEditor(item=null) {
+    editingId = item?.id || null;
+    document.getElementById('dlgTitle').textContent = editingId ? '編輯筆記' : '新增筆記';
+    document.getElementById('fTitle').value = item?.標題 || item?.title || '';
+    document.getElementById('fContent').value = item?.內容 || item?.content || '';
+    document.getElementById('fCategory').value = item?.分類 || item?.category || '';
+    document.getElementById('fTags').value = item?.標籤 || item?.tags || '';
+    document.getElementById('fDate').value = item?.日期 || item?.date || new Date().toISOString().slice(0,10);
+    document.getElementById('btnDelete').style.display = editingId ? '' : 'none';
+    dlg.showModal();
+  }
+  document.getElementById('btnCancel').addEventListener('click', ()=> dlg.close());
+  document.getElementById('btnSave').addEventListener('click', async ()=> {
+    const payload = {
+      標題: document.getElementById('fTitle').value.trim(),
+      內容: document.getElementById('fContent').value.trim(),
+      分類: document.getElementById('fCategory').value.trim(),
+      標籤: document.getElementById('fTags').value.trim()
+    };
+    if (!payload.標題) { alert('請填標題'); return; }
+    if (editingId) {
+      await callApi({ action:'update', id: editingId, ...payload });
+    } else {
+      await callApi({ action:'create', ...payload });
+    }
+    dlg.close();
+    await loadList(document.getElementById('q').value.trim());
+  });
+  document.getElementById('btnDelete').addEventListener('click', async ()=> {
+    if (!editingId) return;
+    if (!confirm('確定要刪除？（將搬到回收）')) return;
+    await callApi({ action:'delete', id: editingId });
+    dlg.close();
+    await loadList(document.getElementById('q').value.trim());
+  });
+
+  // 右滑返回上一頁
+  let startX = 0, startY = 0, moved = false;
+  window.addEventListener('touchstart', (e)=> {
+    const t = e.touches[0]; startX = t.clientX; startY = t.clientY; moved = false;
+  }, {passive:true});
+  window.addEventListener('touchmove', (e)=> { moved = true; }, {passive:true});
+  window.addEventListener('touchend', (e)=> {
+    if (!moved) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = Math.abs(t.clientY - startY);
+    if (dx > 80 && dy < 50 && startX < 80) { // 從左邊緣右滑
+      history.back();
+    }
+  }, {passive:true});
+
+  // 啟動
+  window.addEventListener('load', async ()=> {
+    if ('serviceWorker' in navigator) {
+      try { navigator.serviceWorker.register('./sw.js'); } catch (e) {}
+    }
+    await loadList('');
+  });
+  </script>
+</body>
+</html>
