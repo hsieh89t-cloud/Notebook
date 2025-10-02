@@ -1,0 +1,38 @@
+/* iPhone 備忘錄風：極簡、護眼兩套主題 */
+:root{
+  --bg: #ffffff;
+  --text: #222222;
+  --subtext:#555555;
+  --chip:#f1f1f1;
+  --bar:#f7f7f7;
+  --border:#e6e6e6;
+}
+body.dark{
+  --bg:#0d0d0d;
+  --text:#e6e6e6;
+  --subtext:#a0a0a0;
+  --chip:#1a1a1a;
+  --bar:#121212;
+  --border:#222;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','PingFang TC',Inter,system-ui,sans-serif;}
+.app-bar{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 12px;background:var(--bar);border-bottom:1px solid var(--border);z-index:10;}
+.app-bar .center{font-weight:700;letter-spacing:.5px;}
+.icon-btn{border:0;background:transparent;color:var(--text);font-size:16px;padding:8px 10px;border-radius:10px;}
+.icon-btn:active{opacity:.7;}
+.view{display:none;max-width:680px;margin:0 auto;padding:12px 14px 80px;}
+.view.active{display:block;}
+.note-list{list-style:none;margin:0;padding:0;}
+.note-item{display:flex;align-items:center;justify-content:space-between;padding:14px 8px;border-bottom:1px solid var(--border);}
+.note-title{font-size:24px;margin:18px 0 8px 0;line-height:1.25;}
+.note-snippet{font-size:14px;color:var(--subtext);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.note-date{font-size:12px;color:var(--subtext);}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px;}
+.chip{background:var(--chip);color:var(--subtext);padding:4px 8px;border-radius:999px;font-size:12px;}
+.note-content{white-space:pre-wrap;line-height:1.6;font-size:16px;border-top:1px solid var(--border);padding-top:8px;}
+.hint{opacity:.7;text-align:center;padding:24px;}
+@media (min-width:700px){
+  .note-item{padding:16px 10px;}
+  .note-title{font-size:28px;}
+}
