@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.json" />
-  <title>Notebook（v1.0.4）</title>
+  <title>Notebook（v1.0.6 自動日期）</title>
   <style>
     :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -36,6 +36,7 @@
     .read-meta { color:var(--muted); font-size:12px; }
     .read-content { white-space:pre-wrap; word-break:break-word; line-height:1.6; }
     .read-nav { display:flex; justify-content:space-between; gap:8px; }
+    .tip { color:#9aa0a6; font-size:12px; }
   </style>
 </head>
 <body>
@@ -56,20 +57,37 @@
 
   <button class="fab" id="btnNew"><span>＋ 新增</span></button>
 
+  <!-- 單框輸入（新增） -->
+  <dialog id="dlgNew">
+    <div class="dlg-head">新增（單框輸入）</div>
+    <div class="dlg-body">
+      <textarea id="fOne" rows="10" placeholder="直接貼上或輸入：
+標題：我今天的想法
+分類：日記
+#靈感 #工作
+這裡是內容…（沒有填的就略過）"></textarea>
+      <div class="tip">規則：有「標題：」就取後面；有「分類：」就取後面；有「#標籤」就全部撿起來；其餘文字當作內容。日期會自動帶入台北時間。</div>
+    </div>
+    <div class="dlg-foot">
+      <button id="btnCancelNew">取消</button>
+      <button id="btnSaveNew">儲存</button>
+    </div>
+  </dialog>
+
   <!-- 編輯視窗 -->
   <dialog id="dlgEdit">
-    <div class="dlg-head" id="dlgTitle">新增筆記</div>
+    <div class="dlg-head" id="dlgTitle">編輯筆記</div>
     <div class="dlg-body">
-      <input id="fTitle" placeholder="標題（必填）" />
+      <input id="fTitle" placeholder="標題" />
       <textarea id="fContent" rows="8" placeholder="內容"></textarea>
-      <input id="fCategory" placeholder="分類（選填）" />
-      <input id="fTags" placeholder="標籤（以逗號分隔，可留空）" />
-      <input id="fDate" placeholder="日期（自動，不需填）" disabled />
+      <input id="fCategory" placeholder="分類" />
+      <input id="fTags" placeholder="標籤（以逗號分隔）" />
+      <input id="fDate" placeholder="日期（自動）" disabled />
     </div>
     <div class="dlg-foot">
       <button id="btnDelete" style="display:none">刪除</button>
-      <button id="btnCancel">取消</button>
-      <button id="btnSave">儲存</button>
+      <button id="btnCancelEdit">取消</button>
+      <button id="btnSaveEdit">儲存</button>
     </div>
   </dialog>
 
@@ -113,13 +131,27 @@
     return d;
   }
   function fmtDate(s) {
+    try { const d = new Date(s); if (!isNaN(d.getTime())) return d.toLocaleString('zh-TW', {hour12:false}); return s||''; }
+    catch(e){ return s||''; }
+  }
+  function nowTaipeiStr() {
+    // 取台北時間字串 YYYY-MM-DD HH:mm:ss
     try {
-      const d = new Date(s);
-      if (!isNaN(d.getTime())) {
-        return d.toLocaleString('zh-TW', { hour12:false });
-      }
-      return s || '';
-    } catch(e){ return s || ''; }
+      const fmt = new Intl.DateTimeFormat('zh-TW', { timeZone:'Asia/Taipei', hour12:false,
+        year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'
+      }).format(new Date());
+      // zh-TW 會像 2025/10/03 14:23:05 → 換成 YYYY-MM-DD HH:mm:ss
+      const m = fmt.match(/(\d{4})[\/年\-](\d{2})[\/月\-](\d{2}).(\d{2}):(\d{2}):(\d{2})/);
+      if (m) return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
+    } catch(e){}
+    const d = new Date();
+    const y = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+    const dd = String(d.getUTCDate()).padStart(2,'0');
+    const hh = String((d.getUTCHours()+8)%24).padStart(2,'0');
+    const mi = String(d.getUTCMinutes()).padStart(2,'0');
+    const ss = String(d.getUTCSeconds()).padStart(2,'0');
+    return `${y}-${mm}-${dd} ${hh}:${mi}:${ss}`;
   }
   async function callApi(params) {
     const url = new URL(API);
@@ -133,6 +165,7 @@
   let notes = [];
   let editingId = null;
   let currentIndex = -1;
+  let autoTimer = null;
 
   async function loadList(keyword='') {
     const data = await callApi({ action: ACT.list, keyword, q: keyword, limit: 200 });
@@ -144,10 +177,7 @@
     el.innerHTML = '';
     const count = notes.length || 0;
     document.getElementById('count').textContent = count + ' 筆';
-    if (!count) {
-      el.innerHTML = '<div class="empty">沒有資料</div>';
-      return;
-    }
+    if (!count) { el.innerHTML = '<div class="empty">沒有資料</div>'; return; }
     notes.forEach((n, idx)=> {
       const title = n[KEY.title] ?? n.title ?? '(無標題)';
       const date  = fmtDate(n[KEY.date] ?? n.date ?? '');
@@ -173,10 +203,7 @@
   list.addEventListener('click', async (e)=> {
     const open = e.target.closest('[data-open]');
     const btn = e.target.closest('button');
-    if (open) {
-      openRead(parseInt(open.getAttribute('data-open'), 10));
-      return;
-    }
+    if (open) { openRead(parseInt(open.getAttribute('data-open'), 10)); return; }
     if (!btn) return;
     const id = btn.getAttribute('data-id');
     if (btn.classList.contains('edit')) {
@@ -217,7 +244,21 @@
   q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
   btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
   btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
-  btnNew.addEventListener('click', ()=> openEditor());
+
+  // 單框輸入（新增）
+  const dlgNew = document.getElementById('dlgNew');
+  btnNew.addEventListener('click', ()=> { fOne.value=''; dlgNew.showModal(); });
+  btnCancelNew.addEventListener('click', ()=> dlgNew.close());
+  btnSaveNew.addEventListener('click', async ()=> {
+    const t = fOne.value.trim();
+    if (!t) { alert('請輸入內容'); return; }
+    const data = parseOne(t);
+    if (!data.標題) { alert('請加入「標題：」或至少一些內容'); return; }
+    data[KEY.date] = nowTaipeiStr(); // 前端自動帶日期（台北）
+    await callApi({ action: ACT.create, ...data });
+    dlgNew.close();
+    await loadList(q.value.trim());
+  });
 
   // ====== 編輯視窗 ======
   const dlgEdit = document.getElementById('dlgEdit');
@@ -228,17 +269,18 @@
     fContent.value  = item?.[KEY.content]  ?? item?.content ?? '';
     fCategory.value = item?.[KEY.category] ?? item?.category?? '';
     fTags.value     = item?.[KEY.tags]     ?? item?.tags    ?? '';
-    fDate.value     = fmtDate(item?.[KEY.date] ?? item?.date ?? new Date().toISOString().slice(0,10));
+    fDate.value     = fmtDate(item?.[KEY.date] ?? item?.date ?? '');
     btnDelete.style.display = editingId ? '' : 'none';
     dlgEdit.showModal();
   }
-  btnCancel.addEventListener('click', ()=> dlgEdit.close());
-  btnSave.addEventListener('click', async ()=> {
+  btnCancelEdit.addEventListener('click', ()=> dlgEdit.close());
+  btnSaveEdit.addEventListener('click', async ()=> {
     const payload = {};
     payload[KEY.title]    = fTitle.value.trim();
     payload[KEY.content]  = fContent.value.trim();
     payload[KEY.category] = fCategory.value.trim();
     payload[KEY.tags]     = fTags.value.trim();
+    // 編輯時不主動改日期，維持後端原邏輯
     if (!payload[KEY.title]) { alert('請填標題'); return; }
     if (editingId) await callApi({ action: ACT.update, id: editingId, ...payload });
     else await callApi({ action: ACT.create, ...payload });
@@ -252,6 +294,13 @@
     dlgEdit.close();
     await loadList(q.value.trim());
   });
+
+  // ====== 自動刷新（每 15 秒） ======
+  let autoTimer = null;
+  function startAuto() {
+    if (autoTimer) clearInterval(autoTimer);
+    autoTimer = setInterval(()=> loadList(q.value.trim()), 15000);
+  }
 
   // ====== 手勢：右滑返回、關雙擊放大與捏合 ======
   let startX=0, startY=0, moved=false, lastTouchEnd=0;
@@ -272,7 +321,7 @@
   // 啟動
   window.addEventListener('load', ()=> {
     if ('serviceWorker' in navigator) try { navigator.serviceWorker.register('./sw.js'); } catch(e){}
-    loadList('');
+    loadList(''); startAuto();
   });
   </script>
 </body>
