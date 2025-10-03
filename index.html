@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.json" />
-  <title>Notebook（v1.0.7a ID相容熱修）</title>
+  <title>Notebook（v1.0.7d 完整）</title>
   <style>
-    :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; --danger:#ff9b9b; }
+    :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; --danger:#ff9b9b; --ok:#8fd98f; }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: -apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC',system-ui,sans-serif; height:100%; }
     body { touch-action: manipulation; }
@@ -15,8 +15,11 @@
     .row { display:flex; gap:8px; align-items:center; }
     input, textarea { width:100%; background:#000; color:var(--fg); border:1px solid #333; padding:12px 14px; border-radius:12px; }
     input::placeholder, textarea::placeholder { color:#555; }
-    button { background:#222; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:12px; font-weight:600; }
-    button:active { transform: scale(0.98); }
+    /* 按鈕點擊感 */
+    button { position:relative; overflow:hidden; background:#222; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:12px; font-weight:600; transition:transform .06s ease; }
+    button:active { transform: scale(0.97); }
+    .ripple { position:absolute; border-radius:50%; width:8px; height:8px; transform: translate(-50%,-50%); pointer-events:none; animation:ripple .5s ease-out; background:rgba(255,255,255,.25); }
+    @keyframes ripple { from { opacity:1; width:0; height:0; } to { opacity:0; width:200px; height:200px; } }
     main { padding:10px 8px 22vh; }
     .note { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px; margin:10px 4px; display:flex; gap:10px; }
     .note-body { flex:1; min-width:0; }
@@ -37,7 +40,13 @@
     .read-content { white-space:pre-wrap; word-break:break-word; line-height:1.6; }
     .read-nav { display:flex; justify-content:space-between; gap:8px; }
     .tip { color:#9aa0a6; font-size:12px; }
-    .err { color:var(--danger); font-size:12px; white-space:pre-wrap; word-break:break-word; }
+    .err { color:var(--danger); font-size:12px; white-space:pre-wrap; word-break:break-word; padding:0 12px; }
+    .ok { color:var(--ok); font-size:12px; white-space:pre-wrap; word-break:break-word; padding:0 12px; }
+    .status { font-size:12px; color:#9aa0a6; min-height:1.2em; }
+    .status.ok { color:var(--ok); }
+    .status.err { color:var(--danger); }
+    .toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#2a2a2a; border:1px solid #333; padding:10px 14px; border-radius:999px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(-4px); }
   </style>
 </head>
 <body>
@@ -56,7 +65,7 @@
   </header>
 
   <main id="list"></main>
-  <div id="error" class="err" style="padding:0 12px;"></div>
+  <div id="error" class="err"></div>
 
   <button class="fab" id="btnNew"><span>＋ 新增</span></button>
 
@@ -70,9 +79,10 @@
 #靈感 #工作
 這裡是內容…（沒有填的就略過）"></textarea>
       <div class="tip">規則：有「標題：」就取後面；有「分類：」就取後面；有「#標籤」就全部撿起來；其餘文字當作內容。日期會自動帶入台北時間。</div>
+      <div id="statusNew" class="status"></div>
     </div>
     <div class="dlg-foot">
-      <button id="btnCancelNew">取消</button>
+      <button id="btnCancelNew">關閉</button>
       <button id="btnSaveNew">儲存</button>
     </div>
   </dialog>
@@ -86,10 +96,11 @@
       <input id="fCategory" placeholder="分類" />
       <input id="fTags" placeholder="標籤（以逗號分隔）" />
       <input id="fDate" placeholder="日期（自動）" disabled />
+      <div id="statusEdit" class="status"></div>
     </div>
     <div class="dlg-foot">
       <button id="btnDelete" style="display:none">刪除</button>
-      <button id="btnCancelEdit">取消</button>
+      <button id="btnCancelEdit">關閉</button>
       <button id="btnSaveEdit">儲存</button>
     </div>
   </dialog>
@@ -115,25 +126,37 @@
     </div>
   </dialog>
 
+  <div id="toast" class="toast">已完成</div>
+
   <script>
+  // ====== 常數（GAS 規則） ======
   const API = "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec";
   const ACT = { list:'列出筆記', get:'取得筆記', create:'新增筆記', update:'修改筆記', delete:'刪除筆記' };
   const KEY = { title:'標題', content:'內容', category:'分類', tags:'標籤', date:'日期', id:'id' };
 
+  // ====== 點擊波紋（所有按鈕） ======
+  document.body.addEventListener('click', e=>{
+    const btn = e.target.closest('button'); if(!btn) return;
+    const r = document.createElement('span');
+    r.className = 'ripple';
+    const rect = btn.getBoundingClientRect();
+    r.style.left = (e.clientX - rect.left) + 'px';
+    r.style.top  = (e.clientY - rect.top) + 'px';
+    btn.appendChild(r);
+    setTimeout(()=> r.remove(), 500);
+  });
+
   // ====== 工具 ======
   function clearErr(){ error.textContent=''; }
   function showErr(msg, raw){ error.textContent = '⚠️ ' + msg + (raw ? ('\n' + raw) : ''); }
+  function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg||'已完成'; t.classList.add('show'); setTimeout(()=> t.classList.remove('show'), 1200); }
+  function setStatus(el, msg, ok=false, err=false){ el.textContent=msg||''; el.classList.toggle('ok', !!ok); el.classList.toggle('err', !!err); }
   function normalizeList(data) {
     if (Array.isArray(data)) return data;
     if (!data || typeof data !== 'object') return [];
     return data.items || data.data || data.list || data.records || data.rows || data.notes || data.data || [];
   }
-  function normalizeItem(d) {
-    if (!d) return d;
-    if (d.item) return d.item;
-    if (d.data && !Array.isArray(d.data)) return d.data;
-    return d;
-  }
+  function normalizeItem(d) { if (!d) return d; if (d.item) return d.item; if (d.data && !Array.isArray(d.data)) return d.data; return d; }
   function anyId(obj){
     if (!obj || typeof obj!=='object') return undefined;
     for (const k of Object.keys(obj)) {
@@ -166,14 +189,8 @@
     const lines = text.split(/\r?\n/);
     const rest = [];
     for (let line of lines) {
-      if (!標題) {
-        const m = line.match(/^\s*標題\s*[：:]\s*(.+)$/);
-        if (m) { 標題 = m[1].trim(); continue; }
-      }
-      if (!分類) {
-        const m = line.match(/^\s*分類\s*[：:]\s*(.+)$/);
-        if (m) { 分類 = m[1].trim(); continue; }
-      }
+      if (!標題) { const m = line.match(/^\s*標題\s*[：:]\s*(.+)$/); if (m) { 標題 = m[1].trim(); continue; } }
+      if (!分類) { const m = line.match(/^\s*分類\s*[：:]\s*(.+)$/); if (m) { 分類 = m[1].trim(); continue; } }
       const cleaned = line.replace(/#([^\s#]+)/g, '').trimEnd();
       rest.push(cleaned);
     }
@@ -200,13 +217,7 @@
       body: JSON.stringify(bodyObj||{})
     });
     const raw = await res.text();
-    try { 
-      const j = JSON.parse(raw);
-      if (j && (j.msg||j.message) && /找不到.*ID/i.test(j.msg||j.message)) {
-        showErr('後端回覆：找不到此 ID；我送出的識別碼是：' + (bodyObj.id||bodyObj.ID||bodyObj['筆記ID']||'(空)'));
-      }
-      return j;
-    } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
+    try { return JSON.parse(raw); } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
   }
 
   // ====== 主清單 ======
@@ -247,7 +258,7 @@
     });
   }
 
-  // 點卡片開閱讀 / 編輯 / 刪除
+  // ====== 點卡片 / 編輯 / 刪除 ======
   list.addEventListener('click', async (e)=> {
     const open = e.target.closest('[data-open]');
     const btn = e.target.closest('button');
@@ -257,14 +268,12 @@
     if (!id) { showErr('找不到這筆的識別碼（id）'); return; }
     if (btn.classList.contains('edit')) {
       const d = await getJson({ action: ACT.get, id });
-      const item = normalizeItem(d) || {};
-      // 單筆若沒回 id，補上剛剛點的那個
-      if (anyId(item) == null) item.id = id;
+      const item = normalizeItem(d) || {}; if (anyId(item) == null) item.id = id;
       openEditor(item);
     } else if (btn.classList.contains('del')) {
       if (!confirm('確定要刪除？（將搬到回收）')) return;
-      const body = { id:id, ID:id, '筆記ID':id };
-      await postJson(ACT.delete, body);
+      await postJson(ACT.delete, { id });
+      toast('已刪除');
       await loadList(q.value.trim());
     }
   });
@@ -287,8 +296,7 @@
     const n = notes[currentIndex]; if (!n) return;
     const id = anyId(n);
     const d = await getJson({ action: ACT.get, id });
-    const item = normalizeItem(d) || {};
-    if (anyId(item) == null) item.id = id;
+    const item = normalizeItem(d) || {}; if (anyId(item) == null) item.id = id;
     dlgRead.close();
     openEditor(item);
   });
@@ -301,17 +309,18 @@
 
   // ====== 新增（單框） ======
   const dlgNew = document.getElementById('dlgNew');
-  btnNew.addEventListener('click', ()=> { fOne.value=''; dlgNew.showModal(); });
-  btnCancelNew.addEventListener('click', ()=> dlgNew.close());
+  btnNew.addEventListener('click', ()=> { fOne.value=''; setStatus(statusNew,''); dlgNew.showModal(); });
+  btnCancelNew.addEventListener('click', ()=> { dlgNew.close(); fOne.value=''; setStatus(statusNew,''); }); // 關閉清空
   btnSaveNew.addEventListener('click', async ()=> {
     const t = fOne.value.trim();
-    if (!t) { alert('請輸入內容'); return; }
+    if (!t) { setStatus(statusNew,'請輸入內容',false,true); return; }
     const data = parseOne(t);
-    if (!data.標題) { alert('請加入「標題：」或至少一些內容'); return; }
+    if (!data.標題) { setStatus(statusNew,'請加入「標題：」或至少一些內容',false,true); return; }
     const payload = { '日期': nowTaipeiStr(), '分類': data.分類||'', '標籤': data.標籤||'', '標題': data.標題||'', '內容': data.內容||'' };
     await postJson(ACT.create, payload);
-    dlgNew.close();
-    await loadList(q.value.trim());
+    setStatus(statusNew, '已儲存', true, false);
+    toast('已儲存');
+    await loadList(q.value.trim()); // 不關視窗
   });
 
   // ====== 編輯 ======
@@ -324,41 +333,38 @@
     fCategory.value = item?.[KEY.category] ?? item?.category?? '';
     fTags.value     = item?.[KEY.tags]     ?? item?.tags    ?? '';
     fDate.value     = fmtDate(item?.[KEY.date] ?? item?.date ?? '');
+    setStatus(statusEdit, '');
     btnDelete.style.display = editingId ? '' : 'none';
     dlgEdit.showModal();
   }
-  btnCancelEdit.addEventListener('click', ()=> dlgEdit.close());
+  btnCancelEdit.addEventListener('click', ()=> { dlgEdit.close(); fTitle.value=''; fContent.value=''; fCategory.value=''; fTags.value=''; fDate.value=''; setStatus(statusEdit,''); editingId=null; }); // 關閉清空
   btnSaveEdit.addEventListener('click', async ()=> {
     const title = fTitle.value.trim();
-    if (!title) { alert('請填標題'); return; }
-    if (!editingId) { showErr('缺少 id，無法修改'); return; }
-    const body = {
-      id: editingId, ID: editingId, '筆記ID': editingId,
-      '標題': title,
-      '內容': fContent.value.trim(),
-      '分類': fCategory.value.trim(),
-      '標籤': fTags.value.trim()
-    };
+    if (!title) { setStatus(statusEdit,'請填標題',false,true); return; }
+    if (!editingId) { setStatus(statusEdit,'缺少 id，無法修改',false,true); return; }
+    const body = { id: editingId, '標題': title, '內容': fContent.value.trim(), '分類': fCategory.value.trim(), '標籤': fTags.value.trim() };
     await postJson(ACT.update, body);
-    dlgEdit.close();
-    await loadList(q.value.trim());
+    setStatus(statusEdit, '已儲存', true, false);
+    toast('已儲存');
+    await loadList(q.value.trim()); // 不關視窗
   });
   btnDelete.addEventListener('click', async ()=> {
-    if (!editingId) { showErr('缺少 id，無法刪除'); return; }
+    if (!editingId) { setStatus(statusEdit,'缺少 id，無法刪除',false,true); return; }
     if (!confirm('確定要刪除？（將搬到回收）')) return;
-    const body = { id: editingId, ID: editingId, '筆記ID': editingId };
-    await postJson(ACT.delete, body);
+    await postJson(ACT.delete, { id: editingId });
+    toast('已刪除');
     dlgEdit.close();
+    fTitle.value=''; fContent.value=''; fCategory.value=''; fTags.value=''; fDate.value=''; setStatus(statusEdit,''); editingId=null;
     await loadList(q.value.trim());
   });
 
-  // ====== 自動刷新 ======
+  // ====== 自動刷新（每 15 秒） ======
   function startAuto() {
     if (autoTimer) clearInterval(autoTimer);
     autoTimer = setInterval(()=> loadList(q.value.trim()), 15000);
   }
 
-  // ====== 手勢：右滑返回、關雙擊放大與捏合 ======
+  // ====== 手勢：右滑返回、關雙擊/捏合 ======
   let startX=0, startY=0, moved=false, lastTouchEnd=0;
   window.addEventListener('touchstart', (e)=> { const t=e.touches[0]; startX=t.clientX; startY=t.clientY; moved=false; }, {passive:true});
   window.addEventListener('touchmove', ()=> { moved=true; }, {passive:true});
@@ -374,6 +380,7 @@
   }, {passive:false});
   window.addEventListener('gesturestart', e=> { e.preventDefault(); }, {passive:false});
 
+  // 啟動
   window.addEventListener('load', ()=> {
     if ('serviceWorker' in navigator) try { navigator.serviceWorker.register('./sw.js'); } catch(e){}
     loadList(''); startAuto();
