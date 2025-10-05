@@ -1,9 +1,1 @@
-{
-  "name": "Notebook（v1.0.7d 完整）",
-  "short_name": "Notebook",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#111111",
-  "icons": []
-}
+{"name": "Notebook（v1.0.7e 最新在上＋點卡即編輯）", "short_name": "Notebook", "start_url": ".", "display": "standalone", "background_color": "#111111", "theme_color": "#111111", "icons": []}

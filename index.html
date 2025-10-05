@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
   <meta name="theme-color" content="#111111" />
   <link rel="manifest" href="manifest.json" />
-  <title>Notebook（v1.0.7d 完整）</title>
+  <title>Notebook（v1.0.7e 最新在上＋點卡即編輯）</title>
   <style>
     :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; --danger:#ff9b9b; --ok:#8fd98f; }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -15,7 +15,6 @@
     .row { display:flex; gap:8px; align-items:center; }
     input, textarea { width:100%; background:#000; color:var(--fg); border:1px solid #333; padding:12px 14px; border-radius:12px; }
     input::placeholder, textarea::placeholder { color:#555; }
-    /* 按鈕點擊感 */
     button { position:relative; overflow:hidden; background:#222; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:12px; font-weight:600; transition:transform .06s ease; }
     button:active { transform: scale(0.97); }
     .ripple { position:absolute; border-radius:50%; width:8px; height:8px; transform: translate(-50%,-50%); pointer-events:none; animation:ripple .5s ease-out; background:rgba(255,255,255,.25); }
@@ -34,14 +33,6 @@
     .dlg-head { padding:12px 14px; border-bottom:1px solid #333; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; }
     .dlg-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
     .dlg-foot { display:flex; gap:8px; justify-content:flex-end; padding:10px 14px; border-top:1px solid #333; }
-    .chip { font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid #333; color:#9aa0a6; }
-    .read-title { font-weight:800; font-size:18px; line-height:1.35; word-break:break-word; }
-    .read-meta { color:var(--muted); font-size:12px; }
-    .read-content { white-space:pre-wrap; word-break:break-word; line-height:1.6; }
-    .read-nav { display:flex; justify-content:space-between; gap:8px; }
-    .tip { color:#9aa0a6; font-size:12px; }
-    .err { color:var(--danger); font-size:12px; white-space:pre-wrap; word-break:break-word; padding:0 12px; }
-    .ok { color:var(--ok); font-size:12px; white-space:pre-wrap; word-break:break-word; padding:0 12px; }
     .status { font-size:12px; color:#9aa0a6; min-height:1.2em; }
     .status.ok { color:var(--ok); }
     .status.err { color:var(--danger); }
@@ -69,30 +60,12 @@
 
   <button class="fab" id="btnNew"><span>＋ 新增</span></button>
 
-  <!-- 單框輸入（新增） -->
-  <dialog id="dlgNew">
-    <div class="dlg-head">新增（單框輸入）</div>
-    <div class="dlg-body">
-      <textarea id="fOne" rows="10" placeholder="直接貼上或輸入：
-標題：我今天的想法
-分類：日記
-#靈感 #工作
-這裡是內容…（沒有填的就略過）"></textarea>
-      <div class="tip">規則：有「標題：」就取後面；有「分類：」就取後面；有「#標籤」就全部撿起來；其餘文字當作內容。日期會自動帶入台北時間。</div>
-      <div id="statusNew" class="status"></div>
-    </div>
-    <div class="dlg-foot">
-      <button id="btnCancelNew">關閉</button>
-      <button id="btnSaveNew">儲存</button>
-    </div>
-  </dialog>
-
-  <!-- 編輯視窗 -->
+  <!-- 編輯視窗（同時用於新增與修改） -->
   <dialog id="dlgEdit">
-    <div class="dlg-head" id="dlgTitle">編輯筆記</div>
+    <div class="dlg-head" id="dlgTitle">筆記</div>
     <div class="dlg-body">
       <input id="fTitle" placeholder="標題" />
-      <textarea id="fContent" rows="8" placeholder="內容"></textarea>
+      <textarea id="fContent" rows="8" placeholder="內容（點卡即編輯，就像備忘錄）"></textarea>
       <input id="fCategory" placeholder="分類" />
       <input id="fTags" placeholder="標籤（以逗號分隔）" />
       <input id="fDate" placeholder="日期（自動）" disabled />
@@ -105,48 +78,20 @@
     </div>
   </dialog>
 
-  <!-- 閱讀視窗 -->
-  <dialog id="dlgRead">
-    <div class="dlg-head">
-      <span>閱讀</span>
-      <div class="read-nav">
-        <button id="btnPrev">上一則</button>
-        <button id="btnNext">下一則</button>
-      </div>
-    </div>
-    <div class="dlg-body">
-      <div class="read-title" id="rTitle"></div>
-      <div class="read-meta" id="rMeta"></div>
-      <div class="read-content" id="rContent"></div>
-      <div class="read-meta" id="rTags"></div>
-    </div>
-    <div class="dlg-foot">
-      <button id="btnCloseRead">關閉</button>
-      <button id="btnEditFromRead">編輯這則</button>
-    </div>
-  </dialog>
-
   <div id="toast" class="toast">已完成</div>
 
   <script>
-  // ====== 常數（GAS 規則） ======
   const API = "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec";
   const ACT = { list:'列出筆記', get:'取得筆記', create:'新增筆記', update:'修改筆記', delete:'刪除筆記' };
   const KEY = { title:'標題', content:'內容', category:'分類', tags:'標籤', date:'日期', id:'id' };
 
-  // ====== 點擊波紋（所有按鈕） ======
   document.body.addEventListener('click', e=>{
-    const btn = e.target.closest('button'); if(!btn) return;
-    const r = document.createElement('span');
-    r.className = 'ripple';
-    const rect = btn.getBoundingClientRect();
-    r.style.left = (e.clientX - rect.left) + 'px';
-    r.style.top  = (e.clientY - rect.top) + 'px';
-    btn.appendChild(r);
-    setTimeout(()=> r.remove(), 500);
+    const btn=e.target.closest('button'); if(!btn) return;
+    const r=document.createElement('span'); r.className='ripple';
+    const rect=btn.getBoundingClientRect(); r.style.left=(e.clientX-rect.left)+'px'; r.style.top=(e.clientY-rect.top)+'px';
+    btn.appendChild(r); setTimeout(()=> r.remove(), 500);
   });
 
-  // ====== 工具 ======
   function clearErr(){ error.textContent=''; }
   function showErr(msg, raw){ error.textContent = '⚠️ ' + msg + (raw ? ('\n' + raw) : ''); }
   function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg||'已完成'; t.classList.add('show'); setTimeout(()=> t.classList.remove('show'), 1200); }
@@ -166,6 +111,14 @@
     }
     return obj[KEY.id] ?? obj.id;
   }
+  function parseDateNum(s){
+    if (!s) return -1;
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.getTime();
+    const m = String(s).match(/(\d{4})[-\/年](\d{1,2})[-\/月](\d{1,2})[ T]?(\d{1,2})?:?(\d{1,2})?:?(\d{1,2})?/);
+    if (m){ const y=+m[1], mo=(+m[2])-1, da=+m[3], hh=+(m[4]||'0'), mi=+(m[5]||'0'), ss=+(m[6]||'0'); return new Date(y,mo,da,hh,mi,ss).getTime(); }
+    return -1;
+  }
   function fmtDate(s) {
     try { const d = new Date(s); if (!isNaN(d.getTime())) return d.toLocaleString('zh-TW', {hour12:false}); return s||''; }
     catch(e){ return s||''; }
@@ -183,22 +136,7 @@
     const hh=String((d.getUTCHours()+8)%24).padStart(2,'0'), mi=String(d.getUTCMinutes()).padStart(2,'0'), ss=String(d.getUTCSeconds()).padStart(2,'0');
     return `${y}-${mm}-${dd} ${hh}:${mi}:${ss}`;
   }
-  function parseOne(text) {
-    const tags = Array.from(text.matchAll(/#([^\s#]+)/g)).map(m=>m[1]);
-    let 標題='', 分類='';
-    const lines = text.split(/\r?\n/);
-    const rest = [];
-    for (let line of lines) {
-      if (!標題) { const m = line.match(/^\s*標題\s*[：:]\s*(.+)$/); if (m) { 標題 = m[1].trim(); continue; } }
-      if (!分類) { const m = line.match(/^\s*分類\s*[：:]\s*(.+)$/); if (m) { 分類 = m[1].trim(); continue; } }
-      const cleaned = line.replace(/#([^\s#]+)/g, '').trimEnd();
-      rest.push(cleaned);
-    }
-    let 內容 = rest.join('\n').trim();
-    if (!標題) 標題 = (內容 || '（無標題）').slice(0, 8);
-    const 標籤 = tags.join(',');
-    return { 標題, 分類, 標籤, 內容 };
-  }
+
   async function getJson(params){
     clearErr();
     const url = new URL(API);
@@ -220,17 +158,17 @@
     try { return JSON.parse(raw); } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
   }
 
-  // ====== 主清單 ======
   let notes = [];
   let editingId = null;
-  let currentIndex = -1;
   let autoTimer = null;
 
   async function loadList(keyword='') {
-    const data = await getJson({ action: ACT.list, keyword, q: keyword, limit: 200 });
+    const data = await getJson({ action: ACT.list, keyword, q: keyword, limit: 500 });
     notes = normalizeList(data);
+    notes.sort((a,b)=> (parseDateNum(b[KEY.date] ?? b.date) - parseDateNum(a[KEY.date] ?? a.date)) );
     renderList();
   }
+
   function renderList() {
     const el = document.getElementById('list');
     el.innerHTML = '';
@@ -246,31 +184,32 @@
       const card = document.createElement('div');
       card.className = 'note';
       card.innerHTML = `
-        <div class="note-body" data-open="${idx}">
+        <div class="note-body" data-edit="${idx}">
           <div class="title">${title}</div>
           <div class="meta">${date}${cat?' · '+cat:''}${tags?' · '+tags:''}</div>
         </div>
         <div class="actions">
-          <button data-id="${id ?? ''}" class="edit">編輯</button>
           <button data-id="${id ?? ''}" class="del">刪除</button>
         </div>`;
       el.appendChild(card);
     });
   }
 
-  // ====== 點卡片 / 編輯 / 刪除 ======
   list.addEventListener('click', async (e)=> {
-    const open = e.target.closest('[data-open]');
+    const open = e.target.closest('[data-edit]');
     const btn = e.target.closest('button');
-    if (open) { openRead(parseInt(open.getAttribute('data-open'), 10)); return; }
-    if (!btn) return;
-    const id = btn.getAttribute('data-id');
-    if (!id) { showErr('找不到這筆的識別碼（id）'); return; }
-    if (btn.classList.contains('edit')) {
+    if (open) {
+      const idx = parseInt(open.getAttribute('data-edit'), 10);
+      const n = notes[idx]; if (!n) return;
+      const id = anyId(n);
       const d = await getJson({ action: ACT.get, id });
       const item = normalizeItem(d) || {}; if (anyId(item) == null) item.id = id;
       openEditor(item);
-    } else if (btn.classList.contains('del')) {
+      return;
+    }
+    if (btn && btn.classList.contains('del')) {
+      const id = btn.getAttribute('data-id');
+      if (!id) { showErr('找不到這筆的識別碼（id）'); return; }
       if (!confirm('確定要刪除？（將搬到回收）')) return;
       await postJson(ACT.delete, { id });
       toast('已刪除');
@@ -278,55 +217,9 @@
     }
   });
 
-  // ====== 閱讀視窗 ======
-  const dlgRead = document.getElementById('dlgRead');
-  function openRead(idx) {
-    currentIndex = idx;
-    const n = notes[idx]; if (!n) return;
-    rTitle.textContent = n[KEY.title] ?? n.title ?? '(無標題)';
-    rMeta.textContent = [fmtDate(n[KEY.date] ?? n.date ?? ''), (n[KEY.category] ?? n.category ?? '')].filter(Boolean).join(' · ');
-    rContent.textContent = (n[KEY.content] ?? n.content ?? '');
-    rTags.textContent = (n[KEY.tags] ?? n.tags ?? '') ? '標籤：' + (n[KEY.tags] ?? n.tags ?? '') : '';
-    dlgRead.showModal();
-  }
-  btnPrev.addEventListener('click', ()=> { if (currentIndex>0) openRead(currentIndex-1); });
-  btnNext.addEventListener('click', ()=> { if (currentIndex<notes.length-1) openRead(currentIndex+1); });
-  btnCloseRead.addEventListener('click', ()=> dlgRead.close());
-  btnEditFromRead.addEventListener('click', async ()=> {
-    const n = notes[currentIndex]; if (!n) return;
-    const id = anyId(n);
-    const d = await getJson({ action: ACT.get, id });
-    const item = normalizeItem(d) || {}; if (anyId(item) == null) item.id = id;
-    dlgRead.close();
-    openEditor(item);
-  });
-
-  // ====== 搜尋、更新 ======
-  btnRefresh.addEventListener('click', ()=> loadList(q.value.trim()));
-  q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
-  btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
-  btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
-
-  // ====== 新增（單框） ======
-  const dlgNew = document.getElementById('dlgNew');
-  btnNew.addEventListener('click', ()=> { fOne.value=''; setStatus(statusNew,''); dlgNew.showModal(); });
-  btnCancelNew.addEventListener('click', ()=> { dlgNew.close(); fOne.value=''; setStatus(statusNew,''); }); // 關閉清空
-  btnSaveNew.addEventListener('click', async ()=> {
-    const t = fOne.value.trim();
-    if (!t) { setStatus(statusNew,'請輸入內容',false,true); return; }
-    const data = parseOne(t);
-    if (!data.標題) { setStatus(statusNew,'請加入「標題：」或至少一些內容',false,true); return; }
-    const payload = { '日期': nowTaipeiStr(), '分類': data.分類||'', '標籤': data.標籤||'', '標題': data.標題||'', '內容': data.內容||'' };
-    await postJson(ACT.create, payload);
-    setStatus(statusNew, '已儲存', true, false);
-    toast('已儲存');
-    await loadList(q.value.trim()); // 不關視窗
-  });
-
-  // ====== 編輯 ======
   const dlgEdit = document.getElementById('dlgEdit');
   function openEditor(item=null) {
-    editingId = anyId(item) ?? null;
+    editingId = item ? (anyId(item) ?? null) : null;
     document.getElementById('dlgTitle').textContent = editingId ? '編輯筆記' : '新增筆記';
     fTitle.value    = item?.[KEY.title]    ?? item?.title   ?? '';
     fContent.value  = item?.[KEY.content]  ?? item?.content ?? '';
@@ -336,17 +229,20 @@
     setStatus(statusEdit, '');
     btnDelete.style.display = editingId ? '' : 'none';
     dlgEdit.showModal();
+    setTimeout(()=> fContent.focus(), 0);
   }
-  btnCancelEdit.addEventListener('click', ()=> { dlgEdit.close(); fTitle.value=''; fContent.value=''; fCategory.value=''; fTags.value=''; fDate.value=''; setStatus(statusEdit,''); editingId=null; }); // 關閉清空
+  btnCancelEdit.addEventListener('click', ()=> { dlgEdit.close(); fTitle.value=''; fContent.value=''; fCategory.value=''; fTags.value=''; fDate.value=''; setStatus(statusEdit,''); editingId=null; });
   btnSaveEdit.addEventListener('click', async ()=> {
-    const title = fTitle.value.trim();
-    if (!title) { setStatus(statusEdit,'請填標題',false,true); return; }
-    if (!editingId) { setStatus(statusEdit,'缺少 id，無法修改',false,true); return; }
-    const body = { id: editingId, '標題': title, '內容': fContent.value.trim(), '分類': fCategory.value.trim(), '標籤': fTags.value.trim() };
-    await postJson(ACT.update, body);
+    const title = (fTitle.value||'').trim();
+    const bodyCommon = { '標題': title || (fContent.value.trim().slice(0,8)||'（無標題）'), '內容': fContent.value.trim(), '分類': fCategory.value.trim(), '標籤': fTags.value.trim() };
+    if (editingId) {
+      await postJson(ACT.update, Object.assign({ id: editingId }, bodyCommon));
+    } else {
+      await postJson(ACT.create, Object.assign({ '日期': nowTaipeiStr() }, bodyCommon));
+    }
     setStatus(statusEdit, '已儲存', true, false);
     toast('已儲存');
-    await loadList(q.value.trim()); // 不關視窗
+    await loadList(q.value.trim());
   });
   btnDelete.addEventListener('click', async ()=> {
     if (!editingId) { setStatus(statusEdit,'缺少 id，無法刪除',false,true); return; }
@@ -358,13 +254,14 @@
     await loadList(q.value.trim());
   });
 
-  // ====== 自動刷新（每 15 秒） ======
-  function startAuto() {
-    if (autoTimer) clearInterval(autoTimer);
-    autoTimer = setInterval(()=> loadList(q.value.trim()), 15000);
-  }
+  btnNew.addEventListener('click', ()=> openEditor(null));
+  btnRefresh.addEventListener('click', ()=> loadList(q.value.trim()));
+  q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
+  btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
+  btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
 
-  // ====== 手勢：右滑返回、關雙擊/捏合 ======
+  function startAuto() { if (autoTimer) clearInterval(autoTimer); autoTimer = setInterval(()=> loadList(q.value.trim()), 15000); }
+
   let startX=0, startY=0, moved=false, lastTouchEnd=0;
   window.addEventListener('touchstart', (e)=> { const t=e.touches[0]; startX=t.clientX; startY=t.clientY; moved=false; }, {passive:true});
   window.addEventListener('touchmove', ()=> { moved=true; }, {passive:true});
@@ -380,7 +277,6 @@
   }, {passive:false});
   window.addEventListener('gesturestart', e=> { e.preventDefault(); }, {passive:false});
 
-  // 啟動
   window.addEventListener('load', ()=> {
     if ('serviceWorker' in navigator) try { navigator.serviceWorker.register('./sw.js'); } catch(e){}
     loadList(''); startAuto();
