@@ -1,0 +1,243 @@
+/*
+[Notebook_Core_v2]
+version: v2.0.1
+lang: zh-Hant
+規格遵守：
+- 不新增試算表欄位、不改欄位型別
+- 主表 Notebook：日期｜分類｜標籤｜標題｜內容｜ID｜回收
+- 回收 文件回收：日期｜分類｜標籤｜標題｜內容｜ID｜自動清除日｜永久刪除
+*/
+
+var 試算表ID = '1EwMHfpwD9HMKm0JiFhi7bx1bLPxTgOYrs7gu8ITTi24'; // ← 你的 Spreadsheet ID
+var 時區 = 'Asia/Taipei';
+var 主表名 = 'Notebook';
+var 回收名 = '文件回收';
+
+var 主表表頭 = ['日期','分類','標籤','標題','內容','ID','回收'];
+var 回收表頭 = ['日期','分類','標籤','標題','內容','ID','自動清除日','永久刪除'];
+
+// ===== 共用工具 =====
+function _表(){ return SpreadsheetApp.openById(試算表ID); }
+function _主表(){
+  var ss=_表(), sh=ss.getSheetByName(主表名);
+  if(!sh){ sh=ss.insertSheet(主表名); sh.getRange(1,1,1,主表表頭.length).setValues([主表表頭]); }
+  return sh;
+}
+function _回收表(){
+  var ss=_表(), sh=ss.getSheetByName(回收名);
+  if(!sh){ sh=ss.insertSheet(回收名); sh.getRange(1,1,1,回收表頭.length).setValues([回收表頭]); }
+  return sh;
+}
+function _讀表(sh){ var v=sh.getDataRange().getValues(); return {heads:(v[0]||[]).map(String), rows:v.slice(1)}; }
+function _欄位索引(h){ var m={}; h.forEach(function(x,i){ m[String(x)]=i; }); return m; }
+function _今天(){ return Utilities.formatDate(new Date(),時區,'yyyy/MM/dd'); }
+function _nowISO(){ return Utilities.formatDate(new Date(),時區,"yyyy-MM-dd'T'HH:mm:ssXXX"); }
+function _到期日(天){ var d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+Number(天||15)); return d; }
+function _新ID(){ var ts=Utilities.formatDate(new Date(),時區,'yyyyMMddHHmmss'); var r=Math.floor(Math.random()*1e8).toString(36); return 'n_'+ts+'_'+r; }
+function _ok(o){ return Object.assign({ok:true, ts:_nowISO()}, o||{}); }
+function _err(m){ return {ok:false, error:String(m||'發生錯誤'), ts:_nowISO()}; }
+function _回應(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+function _取JSON(e){ if(!e||!e.postData||!e.postData.contents) return {}; try{ return JSON.parse(e.postData.contents); }catch(_){ return {}; } }
+
+// ===== HTTP 入口 =====
+function doGet(e){ return _回應(_路由(e,'GET')); }
+function doPost(e){ return _回應(_路由(e,'POST')); }
+
+function _路由(e,方法){
+  try{
+    var act=(e.parameter.action||'').trim();
+    var p=_取JSON(e);
+    switch(act){
+      case 'ping': return _ok({pong:true, ver:'v2.0.1'});
+
+      // 讀取 / 查詢
+      case '列出筆記': return _ok({data: 列出筆記(e)});
+      case '取得筆記': return _ok({data: 取得筆記(p.id||e.parameter.id)});
+
+      // 新增 / 修改
+      case '新增筆記': return _ok(新增筆記(p));
+      case '修改筆記': return _ok(修改筆記(p)); // ← 新增的「修改」接口（標題/分類/標籤/內容）
+
+      // 刪除 / 回收桶
+      case '刪除筆記': return _ok(刪除筆記(p.id));
+      case '還原筆記': return _ok(還原筆記(p.id));
+      case '永久刪除筆記': return _ok(永久刪除筆記(p.id));
+
+      // 清理
+      case '自動清理回收桶': return _ok({purged: 自動清理回收桶(Number(e.parameter.keepDays||15))});
+
+      // 捷徑（單視窗貼文字）
+      case '捷徑新增筆記': return _ok(捷徑新增筆記(p && p.text));
+
+      default:
+        if(方法==='GET') return _ok({info:'Notebook Core v2.0.1'});
+        throw new Error('未知 action');
+    }
+  }catch(ex){ return _err(ex.message||String(ex)); }
+}
+
+// ===== 核心：查詢 =====
+function 列出筆記(e){
+  var sh=_主表(), d=_讀表(sh); if(!d.rows.length) return [];
+  var i=_欄位索引(d.heads);
+
+  var q=(e.parameter.keyword||'').toLowerCase().trim();
+  var tag=(e.parameter.tag||'').trim();
+  var cat=(e.parameter.category||'').trim();
+  var limit=parseInt(e.parameter.limit||'0',10);
+
+  var out=[];
+  d.rows.forEach(function(r){
+    var rec={ 日期:r[i['日期']], 分類:r[i['分類']], 標籤:r[i['標籤']], 標題:r[i['標題']], 內容:r[i['內容']], ID:r[i['ID']] };
+    if(q){
+      var hay=(String(rec.標題||'')+' '+String(rec.內容||'')+' '+String(rec.分類||'')+' '+String(rec.標籤||'')).toLowerCase();
+      if(hay.indexOf(q)<0) return;
+    }
+    if(tag){
+      var tags=String(rec.標籤||'').split(/[#,，, ]+/).filter(Boolean);
+      if(tags.indexOf(tag)<0) return;
+    }
+    if(cat && String(rec.分類||'')!==cat) return;
+    out.push(rec);
+  });
+  out.sort(function(a,b){ // 先日期後ID
+    var d=String(b.日期).localeCompare(String(a.日期));
+    if(d!==0) return d;
+    return String(b.ID).localeCompare(String(a.ID));
+  });
+  if(limit>0) out=out.slice(0,limit);
+  return out;
+}
+
+function 取得筆記(id){
+  if(!id) throw new Error('缺少 id');
+
+  var sh=_主表(), d=_讀表(sh), i=_欄位索引(d.heads);
+  for(var r=0;r<d.rows.length;r++){
+    if(String(d.rows[r][i['ID']])===String(id)){
+      var row=d.rows[r];
+      return { 日期:row[i['日期']], 分類:row[i['分類']], 標籤:row[i['標籤']], 標題:row[i['標題']], 內容:row[i['內容']], ID:row[i['ID']], 回收:0 };
+    }
+  }
+  var tr=_回收表(), d2=_讀表(tr), j=_欄位索引(d2.heads);
+  for(var r2=0;r2<d2.rows.length;r2++){
+    if(String(d2.rows[r2][j['ID']])===String(id)){
+      var row2=d2.rows[r2];
+      return { 日期:row2[j['日期']], 分類:row2[j['分類']], 標籤:row2[j['標籤']], 標題:row2[j['標題']], 內容:row2[j['內容']], ID:row2[j['ID']], 回收:1, 自動清除日:row2[j['自動清除日']] };
+    }
+  }
+  throw new Error('找不到指定 ID');
+}
+
+// ===== 核心：新增 / 修改 =====
+function 新增筆記(p){
+  if(!p) p={};
+  var rec={
+    日期: p['日期']||_今天(),
+    分類: p['分類']||'',
+    標籤: p['標籤']||'',
+    標題: p['標題']||'',
+    內容: p['內容']||'',
+    ID: _新ID()
+  };
+  _主表().appendRow([rec.日期,rec.分類,rec.標籤,rec.標題,rec.內容,rec.ID,""]); // 「回收」欄固定寫空字串，不動核取型別
+  return { id:rec.ID };
+}
+
+/**
+ * 修改筆記：可修改 標題/分類/標籤/內容/日期（如需）
+ * 參數格式：
+ *  - p.id（必填）
+ *  - p.標題 / p.分類 / p.標籤 / p.內容 / p.日期（擇一或多個）
+ */
+function 修改筆記(p){
+  if(!p || !p.id) throw new Error('缺少 id');
+  var sh=_主表(), d=_讀表(sh), i=_欄位索引(d.heads);
+
+  for(var r=0;r<d.rows.length;r++){
+    if(String(d.rows[r][i['ID']])===String(p.id)){
+      var row=d.rows[r];
+      if(p['日期']!==undefined) row[i['日期']]=p['日期'];
+      if(p['分類']!==undefined) row[i['分類']]=p['分類'];
+      if(p['標籤']!==undefined) row[i['標籤']]=p['標籤'];
+      if(p['標題']!==undefined) row[i['標題']]=p['標題'];
+      if(p['內容']!==undefined) row[i['內容']]=p['內容'];
+      sh.getRange(r+2,1,1,d.heads.length).setValues([row]);
+      return { id:p.id, updated:true };
+    }
+  }
+  throw new Error('找不到指定 ID（只能修改主表中的筆記）');
+}
+
+// ===== 回收桶：刪除 / 還原 / 永久刪除 =====
+function 刪除筆記(id){
+  if(!id) throw new Error('缺少 id');
+  var sh=_主表(), d=_讀表(sh), i=_欄位索引(d.heads);
+  for(var r=d.rows.length-1;r>=0;r--){
+    if(String(d.rows[r][i['ID']])===String(id)){
+      var row=d.rows[r], due=_到期日(15);
+      _回收表().appendRow([row[i['日期']],row[i['分類']],row[i['標籤']],row[i['標題']],row[i['內容']],row[i['ID']], due, ""]);
+      sh.deleteRow(r+2);
+      return { trashed:true };
+    }
+  }
+  return { trashed:false };
+}
+
+function 還原筆記(id){
+  if(!id) throw new Error('缺少 id');
+  var sh=_回收表(), d=_讀表(sh), i=_欄位索引(d.heads);
+  for(var r=d.rows.length-1;r>=0;r--){
+    if(String(d.rows[r][i['ID']])===String(id)){
+      var row=d.rows[r];
+      _主表().appendRow([row[i['日期']],row[i['分類']],row[i['標籤']],row[i['標題']],row[i['內容']],row[i['ID']], ""]);
+      sh.deleteRow(r+2);
+      return { restored:true };
+    }
+  }
+  return { restored:false };
+}
+
+function 永久刪除筆記(id){
+  if(!id) throw new Error('缺少 id');
+  var sh=_回收表(), d=_讀表(sh), i=_欄位索引(d.heads);
+  for(var r=d.rows.length-1;r>=0;r--){
+    if(String(d.rows[r][i['ID']])===String(id)){
+      sh.deleteRow(r+2);
+      return { purged:true };
+    }
+  }
+  return { purged:false };
+}
+
+// ===== 自動清理 =====
+function 自動清理回收桶(keepDays){
+  var sh=_回收表(), v=sh.getDataRange().getValues(); if(v.length<=1) return 0;
+  var 刪=0, today=new Date(); today.setHours(0,0,0,0);
+  for(var r=v.length-1;r>=1;r--){
+    var due=v[r][6];
+    if(due instanceof Date){
+      var d=new Date(due); d.setHours(0,0,0,0);
+      if(d<=today){ sh.deleteRow(r+1); 刪++; }
+    }
+  }
+  return 刪;
+}
+
+// ===== 捷徑（單視窗文字）=====
+function 捷徑新增筆記(text){
+  if(!text) throw new Error('缺少文字');
+  var o=_解析捷徑文字(text);
+  var r=新增筆記(o);
+  return Object.assign(r,{ parsed:o });
+}
+function _解析捷徑文字(s){
+  var c=String(s||'').replace(/\r/g,'').trim();
+  var category='', title='', tags=[];
+  var mCat=c.match(/分類：([^\n#]+)/); if(mCat) category=mCat[1].trim();
+  var mTitle=c.match(/標題：([^\n#]+)/); if(mTitle) title=mTitle[1].trim();
+  var tagMatches=c.match(/#[^\s#，,]+/g); if(tagMatches) tags=tagMatches.map(function(x){ return x.replace(/^#/,''); });
+  var content=c.replace(/.*分類：[^\n]*\n?/,'').replace(/.*標題：[^\n]*\n?/,'').trim();
+  if(!title){ title=(content||'').slice(0,8); }
+  return { 日期:_今天(), 分類:category, 標題:title, 內容:content, 標籤:tags.join(',') };
+}

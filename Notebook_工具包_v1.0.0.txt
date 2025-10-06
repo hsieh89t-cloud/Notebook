@@ -1,0 +1,295 @@
+
+/*
+[Notebook_工具包]
+version: v1.0.0 (zh-Hant)
+scope: 綁定 Notebook 試算表（容器內專案）
+目的：在不更動核心 API（寫入/讀取/刪除）的前提下，提供後台管理小工具。
+表格規格：
+- 主表：Notebook（日期｜分類｜標籤｜標題｜內容｜ID｜回收）
+- 回收：文件回收（日期｜分類｜標籤｜標題｜內容｜ID｜自動清除日｜永久刪除）
+注意：
+- 「僅檢查」模式只偵測，不修改。
+- 「修復」模式才會調整欄位的核取方塊/日期格式。
+*/
+
+var 時區 = 'Asia/Taipei';
+var 主表名 = 'Notebook';
+var 回收名 = '文件回收';
+
+// 參數（可調）
+var KEEP_DAYS = 15;            // 回收桶自動清除預設天數
+var RETAIN_SHEETS_DAYS = 30;   // 工具輸出分頁保留天數（Export_*/tags_report_* 等）
+
+// ========== UI 選單 ==========
+function onOpen(){
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Notebook 工具')
+    .addItem('一鍵健檢（僅檢查）','一鍵健檢_僅檢查')
+    .addItem('一鍵健檢（修復模式）','一鍵健檢_修復')
+    .addSeparator()
+    .addItem('手動清理回收桶（刪除到期）','手動清理回收桶')
+    .addItem('搬移回收（主表回收欄為勾選者）','搬移回收')
+    .addSeparator()
+    .addItem('導出今天的筆記','導出今天')
+    .addItem('導出日期區間…','導出日期區間_對話框')
+    .addItem('標籤整理報表','標籤整理')
+    .addSeparator()
+    .addItem('關鍵字搜尋（建立結果分頁）','關鍵字搜尋_對話框')
+    .addSeparator()
+    .addItem('建立觸發器（每日清理/勾選即刪）','建立觸發器')
+    .addItem('移除觸發器（本專案）','移除觸發器')
+    .addItem('查看觸發器狀態','查看觸發器狀態')
+    .addSeparator()
+    .addItem('清理舊的工具輸出分頁','清理舊分頁')
+    .addToUi();
+}
+
+// ========== 共用 ==========
+function 表(){ return SpreadsheetApp.getActive(); }
+function 主表(){ return 表().getSheetByName(主表名); }
+function 回收表(){ return 表().getSheetByName(回收名); }
+function 今天字串(){ return Utilities.formatDate(new Date(),時區,'yyyy/MM/dd'); }
+function nowISO(){ return Utilities.formatDate(new Date(),時區,"yyyy-MM-dd'T'HH:mm:ssXXX"); }
+function _rangeValues(sh){ var v=sh.getDataRange().getValues(); return {heads:(v[0]||[]).map(String), rows:v.slice(1)}; }
+function _headIndex(arr){ var m={}; arr.forEach(function(x,i){ m[String(x)]=i; }); return m; }
+function _alert(msg){ SpreadsheetApp.getUi().alert(String(msg)); }
+
+// ========== 健檢 ==========
+function 一鍵健檢_僅檢查(){ _alert(_健檢(false)); }
+function 一鍵健檢_修復(){ _alert(_健檢(true)); }
+
+function _健檢(修復){
+  var logs = [];
+  try{
+    var sh = 主表();
+    if(!sh){ logs.push('找不到主表 Notebook'); }
+    else {
+      var last = sh.getLastRow();
+      if(last>=2){
+        var r = sh.getRange(2,7,last-1,1); // 回收欄
+        if(修復){
+          try{ r.clearDataValidations(); }catch(_){}
+          try{ r.insertCheckboxes(); }catch(e){ logs.push('主表回收欄插入核取失敗：'+e); }
+        }
+        logs.push('主表回收欄檢查完成');
+      }else{
+        logs.push('主表目前無資料列');
+      }
+    }
+  }catch(e){ logs.push('主表檢查異常：'+e); }
+
+  try{
+    var tr = 回收表();
+    if(!tr){ logs.push('找不到回收表 文件回收'); }
+    else {
+      var tlast = tr.getLastRow();
+      if(tlast>=2){
+        var r7 = tr.getRange(2,7,tlast-1,1); // 自動清除日
+        var r8 = tr.getRange(2,8,tlast-1,1); // 永久刪除
+        if(修復){
+          try{ r7.clearDataValidations(); }catch(_){}
+          try{ r7.removeCheckboxes(); }catch(_){}
+          try{ r7.setNumberFormat('yyyy/mm/dd'); }catch(_){}
+          try{ r8.clearDataValidations(); }catch(_){}
+          try{ r8.insertCheckboxes(); }catch(e){ logs.push('回收表「永久刪除」核取設定失敗：'+e); }
+        }
+        logs.push('回收表欄型檢查完成');
+      }else{
+        logs.push('回收表目前無資料列');
+      }
+    }
+  }catch(e){ logs.push('回收表檢查異常：'+e); }
+
+  // 檢視必要欄位是否齊全
+  try{
+    var s1 = 主表(), s2 = 回收表();
+    if(s1){
+      var h1 = s1.getRange(1,1,1,s1.getLastColumn()).getValues()[0].map(String);
+      ['日期','分類','標籤','標題','內容','ID','回收'].forEach(function(k){
+        if(h1.indexOf(k)<0) logs.push('主表缺少欄位：'+k);
+      });
+    }
+    if(s2){
+      var h2 = s2.getRange(1,1,1,s2.getLastColumn()).getValues()[0].map(String);
+      ['日期','分類','標籤','標題','內容','ID','自動清除日','永久刪除'].forEach(function(k){
+        if(h2.indexOf(k)<0) logs.push('回收表缺少欄位：'+k);
+      });
+    }
+  }catch(e){ logs.push('欄位檢查異常：'+e); }
+
+  logs.unshift('健檢時間：'+nowISO()+(修復?'（修復模式）':'（僅檢查）'));
+  return logs.join('\n');
+}
+
+// ========== 回收桶動作 ==========
+function 手動清理回收桶(){
+  var sh = 回收表(); if(!sh){ return _alert('找不到「文件回收」'); }
+  var v = sh.getDataRange().getValues(); if(v.length<=1){ return _alert('文件回收目前為空'); }
+  var 刪=0, today=new Date(); today.setHours(0,0,0,0);
+  for(var r=v.length-1;r>=1;r--){
+    var due=v[r][6]; // 自動清除日
+    if(due instanceof Date){
+      var d=new Date(due); d.setHours(0,0,0,0);
+      if(d<=today){ sh.deleteRow(r+1); 刪++; }
+    }
+  }
+  _alert('已刪除到期：'+刪+' 筆');
+}
+
+function 搬移回收(){
+  var sh = 主表(); if(!sh){ return _alert('找不到主表 Notebook'); }
+  var v = sh.getDataRange().getValues(); if(v.length<=1){ return _alert('主表目前為空'); }
+  var moved=0;
+  for(var r=v.length-1;r>=1;r--){
+    var row=v[r];
+    var 回收欄=row[6];
+    if(回收欄===true || String(回收欄).toUpperCase()==='TRUE' || Number(回收欄)===1){
+      回收表().appendRow([row[0],row[1],row[2],row[3],row[4],row[5], _到期日(KEEP_DAYS), ""]);
+      sh.deleteRow(r+1);
+      moved++;
+    }
+  }
+  _alert('已搬移到回收桶：'+moved+' 筆');
+}
+
+function _到期日(天){ var d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+Number(天||KEEP_DAYS)); return d; }
+
+// ========== 導出/報表 ==========
+function 導出今天(){
+  var sh = 主表(); if(!sh){ return _alert('找不到主表 Notebook'); }
+  var v = sh.getDataRange().getValues(); if(v.length<=1){ return _alert('主表目前為空'); }
+  var heads=v[0], rows=[heads], today=今天字串();
+  for(var i=1;i<v.length;i++){ if(String(v[i][0])===today) rows.push(v[i]); }
+  var name='Export_'+Utilities.formatDate(new Date(),時區,'yyyyMMdd');
+  var exist=表().getSheetByName(name); if(exist) 表().deleteSheet(exist);
+  var out=表().insertSheet(name);
+  out.getRange(1,1,rows.length,heads.length).setValues(rows);
+  _alert('已導出 '+(rows.length-1)+' 筆到：'+name);
+}
+
+function 導出日期區間_對話框(){
+  var ui=SpreadsheetApp.getUi();
+  var res=ui.prompt('輸入日期區間', '請輸入：起日, 迄日（例如 2025/10/01, 2025/10/02）', ui.ButtonSet.OK_CANCEL);
+  if(res.getSelectedButton()!=ui.Button.OK) return;
+  var parts = String(res.getResponseText()||'').split(',').map(function(s){ return s.trim(); });
+  if(parts.length<2) return _alert('格式不正確');
+  導出日期區間(parts[0],parts[1]);
+}
+
+function 導出日期區間(startStr,endStr){
+  var sh = 主表(); if(!sh){ return _alert('找不到主表 Notebook'); }
+  var v = sh.getDataRange().getValues(); if(v.length<=1){ return _alert('主表目前為空'); }
+  var heads=v[0], rows=[heads];
+  var s=startStr.trim(), e=endStr.trim();
+  for(var i=1;i<v.length;i++){
+    var d=String(v[i][0]); if(d>=s && d<=e) rows.push(v[i]);
+  }
+  var name='Export_'+Utilities.formatDate(new Date(),時區,'yyyyMMdd')+'_RANGE';
+  var exist=表().getSheetByName(name); if(exist) 表().deleteSheet(exist);
+  var out=表().insertSheet(name);
+  out.getRange(1,1,rows.length,heads.length).setValues(rows);
+  _alert('已導出 '+(rows.length-1)+' 筆到：'+name);
+}
+
+function 標籤整理(){
+  var sh=主表(); if(!sh){ return _alert('找不到主表 Notebook'); }
+  var v=sh.getDataRange().getValues(); if(v.length<=1){ return _alert('主表目前為空'); }
+  var map={};
+  for(var i=1;i<v.length;i++){
+    String(v[i][2]||'').split(/[#,，, ]+/).map(function(x){ return x.trim(); }).filter(Boolean)
+      .forEach(function(t){ map[t]=(map[t]||0)+1; });
+  }
+  var list=Object.keys(map).sort(function(a,b){ return map[b]-map[a]; }).map(function(k){ return [k,map[k]]; });
+  var name='tags_report_'+Utilities.formatDate(new Date(),時區,'yyyyMMdd');
+  var exist=表().getSheetByName(name); if(exist) 表().deleteSheet(exist);
+  var out=表().insertSheet(name);
+  out.getRange(1,1,1,2).setValues([['標籤','次數']]);
+  if(list.length) out.getRange(2,1,list.length,2).setValues(list);
+  _alert('已產生 '+name+'，共 '+list.length+' 筆');
+}
+
+// ========== 搜尋 ==========
+function 關鍵字搜尋_對話框(){
+  var ui=SpreadsheetApp.getUi();
+  var res=ui.prompt('關鍵字搜尋','請輸入關鍵字（標題/內容/分類/標籤均可）',ui.ButtonSet.OK_CANCEL);
+  if(res.getSelectedButton()!=ui.Button.OK) return;
+  var q = String(res.getResponseText()||'').toLowerCase().trim();
+  if(!q) return _alert('未輸入關鍵字');
+  關鍵字搜尋(q);
+}
+
+function 關鍵字搜尋(q){
+  var sh=主表(); if(!sh){ return _alert('找不到主表 Notebook'); }
+  var v=sh.getDataRange().getValues(); if(v.length<=1){ return _alert('主表目前為空'); }
+  var heads=v[0], rows=[heads];
+  for(var i=1;i<v.length;i++){
+    var row=v[i];
+    var hay=(String(row[3]||'')+' '+String(row[4]||'')+' '+String(row[1]||'')+' '+String(row[2]||'')).toLowerCase();
+    if(hay.indexOf(q)>=0) rows.push(row);
+  }
+  var name='Search_'+Utilities.formatDate(new Date(),時區,'yyyyMMdd_HHmm');
+  var exist=表().getSheetByName(name); if(exist) 表().deleteSheet(exist);
+  var out=表().insertSheet(name);
+  out.getRange(1,1,rows.length,heads.length).setValues(rows);
+  _alert('已建立搜尋結果分頁：'+name+'（筆數：'+(rows.length-1)+'）');
+}
+
+// ========== 觸發器 ==========
+function 建立觸發器(){
+  // 清除舊的避免重複
+  移除觸發器();
+  // 每日 03:00 清回收桶（到期）
+  ScriptApp.newTrigger('手動清理回收桶').timeBased().everyDays(1).atHour(3).inTimezone(時區).create();
+  // onEdit 監聽回收表「永久刪除」核取（勾選即刪）
+  ScriptApp.newTrigger('回收桶_勾選即刪除').forSpreadsheet(SpreadsheetApp.getActive()).onEdit().create();
+  SpreadsheetApp.getUi().alert('觸發器已建立完成');
+}
+
+function 移除觸發器(){
+  var all = ScriptApp.getProjectTriggers();
+  all.forEach(function(t){ ScriptApp.deleteTrigger(t); });
+  SpreadsheetApp.getUi().alert('已移除本專案所有觸發器');
+}
+
+function 查看觸發器狀態(){
+  var all = ScriptApp.getProjectTriggers();
+  if(!all.length) return _alert('目前沒有任何觸發器');
+  var lines = all.map(function(t){
+    return [t.getHandlerFunction(), t.getEventType(), t.getTriggerSource() ].join(' | ');
+  });
+  _alert('觸發器清單：\n'+lines.join('\n'));
+}
+
+function 回收桶_勾選即刪除(e){
+  try{
+    if(!e) return;
+    var sh=e.range.getSheet();
+    if(sh.getName()!==回收名) return;
+    var heads=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String);
+    var colDel=heads.indexOf('永久刪除')+1;
+    var colId=heads.indexOf('ID')+1;
+    if(!colDel||!colId) return;
+    if(e.range.getColumn()!==colDel) return;
+    if(e.value!=='TRUE') return;
+    var id = sh.getRange(e.range.getRow(), colId).getValue();
+    sh.deleteRow(e.range.getRow());
+  }catch(err){ Logger.log('onEdit err: '+err); }
+}
+
+// ========== 維護 ==========
+function 清理舊分頁(){
+  var keep = RETAIN_SHEETS_DAYS;
+  var sheets = 表().getSheets();
+  var 期限 = new Date(); 期限.setDate(期限.getDate()-keep);
+  var 刪=0;
+  sheets.forEach(function(sh){
+    var n = sh.getName();
+    if(n===主表名 || n===回收名) return;
+    var m = n.match(/^(Export_|Search_|tags_report_)(\d{8})(?:_(\d{4}))?$/);
+    if(!m) return;
+    var y=+m[2].slice(0,4), mo=+m[2].slice(4,6), d=+m[2].slice(6,8);
+    var day=new Date(y,mo-1,d);
+    if(day<期限){ 表().deleteSheet(sh); 刪++; }
+  });
+  _alert('已清理 '+刪+' 張舊分頁');
+}
