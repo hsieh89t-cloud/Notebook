@@ -1,390 +1,675 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-theme="dark">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1" />
-  <meta name="theme-color" content="#111111" />
-  <link rel="manifest" href="manifest.json" />
-  <title>Notebook（v1.0.7d 完整）</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0f1115">
+  <link rel="manifest" href="manifest.json">
+  <title>Mood Notebook</title>
   <style>
-    :root { --bg:#111; --fg:#fff; --muted:#9aa0a6; --card:#1a1a1a; --border:#232323; --danger:#ff9b9b; --ok:#8fd98f; }
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family: -apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC',system-ui,sans-serif; height:100%; }
-    body { touch-action: manipulation; }
-    header { position:sticky; top:0; z-index:10; background:var(--bg); padding:10px 10px 6px; border-bottom:1px solid var(--border); }
-    .row { display:flex; gap:8px; align-items:center; }
-    input, textarea { width:100%; background:#000; color:var(--fg); border:1px solid #333; padding:12px 14px; border-radius:12px; }
-    input::placeholder, textarea::placeholder { color:#555; }
-    /* 按鈕點擊感 */
-    button { position:relative; overflow:hidden; background:#222; color:var(--fg); border:1px solid #333; padding:10px 12px; border-radius:12px; font-weight:600; transition:transform .06s ease; }
-    button:active { transform: scale(0.97); }
-    .ripple { position:absolute; border-radius:50%; width:8px; height:8px; transform: translate(-50%,-50%); pointer-events:none; animation:ripple .5s ease-out; background:rgba(255,255,255,.25); }
-    @keyframes ripple { from { opacity:1; width:0; height:0; } to { opacity:0; width:200px; height:200px; } }
-    main { padding:10px 8px 22vh; }
-    .note { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px; margin:10px 4px; display:flex; gap:10px; }
-    .note-body { flex:1; min-width:0; }
-    .title { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; font-weight:700; font-size:16px; line-height:1.25; }
-    .meta { color:var(--muted); font-size:12px; margin-top:4px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
-    .actions { display:flex; flex-direction:column; gap:6px; }
-    .empty { color:var(--muted); text-align:center; margin-top:18px; }
-    .fab { position:fixed; right:16px; bottom:16px; background:#2a2a2a; border:1px solid #333; border-radius:16px; padding:12px 14px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
-    .fab span { font-size:14px; }
-    dialog { width:min(680px, 94vw); background:var(--card); color:var(--fg); border:1px solid #333; border-radius:14px; padding:0; }
-    dialog::backdrop { background:rgba(0,0,0,.6); }
-    .dlg-head { padding:12px 14px; border-bottom:1px solid #333; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; }
-    .dlg-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
-    .dlg-foot { display:flex; gap:8px; justify-content:flex-end; padding:10px 14px; border-top:1px solid #333; }
-    .chip { font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid #333; color:#9aa0a6; }
-    .read-title { font-weight:800; font-size:18px; line-height:1.35; word-break:break-word; }
-    .read-meta { color:var(--muted); font-size:12px; }
-    .read-content { white-space:pre-wrap; word-break:break-word; line-height:1.6; }
-    .read-nav { display:flex; justify-content:space-between; gap:8px; }
-    .tip { color:#9aa0a6; font-size:12px; }
-    .err { color:var(--danger); font-size:12px; white-space:pre-wrap; word-break:break-word; padding:0 12px; }
-    .ok { color:var(--ok); font-size:12px; white-space:pre-wrap; word-break:break-word; padding:0 12px; }
-    .status { font-size:12px; color:#9aa0a6; min-height:1.2em; }
+    :root {
+      --bg:#0f1115;
+      --fg:#f5f6f8;
+      --muted:#9aa0a6;
+      --card:#16181d;
+      --border:#252932;
+      --accent:#4fc3f7;
+      --danger:#ff8a80;
+      --ok:#7fd48c;
+      --shadow:0 12px 32px rgba(0,0,0,.35);
+      --comment-bg:#1d2026;
+    }
+    [data-theme="light"] {
+      --bg:#f6f7f8;
+      --fg:#1d1f23;
+      --muted:#666b73;
+      --card:#ffffff;
+      --border:#dfe3e8;
+      --accent:#3f51b5;
+      --danger:#e53935;
+      --ok:#2e7d32;
+      --shadow:0 10px 26px rgba(150,160,170,.22);
+      --comment-bg:#f2f4f8;
+    }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,'PingFang TC','Noto Sans TC',system-ui,sans-serif; height:100%; }
+    body { touch-action:manipulation; }
+    header { position:sticky; top:0; z-index:20; background:linear-gradient(to bottom,var(--bg) 70%,rgba(0,0,0,0)); padding:14px 16px 10px; border-bottom:1px solid var(--border); backdrop-filter:blur(12px); display:flex; flex-direction:column; gap:12px; }
+    .header-row { display:flex; align-items:center; gap:10px; }
+    .header-row.filters { flex-wrap:wrap; gap:12px; }
+    .filters .filter-select { max-width:140px; }
+    .brand { font-weight:800; font-size:20px; letter-spacing:.04em; }
+    .chip { font-size:12px; padding:4px 10px; border-radius:999px; border:1px solid var(--border); color:var(--muted); }
+    .spacer { flex:1; }
+    button { border:none; background:var(--card); color:var(--fg); border-radius:14px; padding:10px 16px; font-weight:600; position:relative; overflow:hidden; cursor:pointer; transition:transform .08s ease; }
+    button:active { transform:scale(.97); }
+    button.icon { width:42px; height:42px; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+    .icon svg { width:22px; height:22px; fill:var(--fg); }
+    input, textarea, select { width:100%; background:var(--card); color:var(--fg); border:1px solid var(--border); border-radius:16px; padding:14px 16px; font-size:15px; }
+    textarea { min-height:120px; resize:vertical; }
+    input::placeholder, textarea::placeholder { color:var(--muted); }
+    main { padding:14px 16px 26vh; display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+    .note { background:var(--card); border:1px solid var(--border); border-radius:24px; padding:18px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:16px; position:relative; overflow:hidden; }
+    .note::before { content:""; position:absolute; inset:0; pointer-events:none; border-radius:24px; opacity:.12; background:var(--note-color,#4fc3f7); mix-blend-mode:screen; }
+    .note-body { position:relative; z-index:1; display:flex; flex-direction:column; gap:14px; }
+    .note-head { display:flex; gap:12px; align-items:center; }
+    .mood { width:48px; height:48px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:18px; background:linear-gradient(135deg,var(--note-color,#4fc3f7),rgba(255,255,255,.22)); color:#0f1115; box-shadow:inset 0 0 0 2px rgba(255,255,255,.3); }
+    .meta { flex:1; min-width:0; }
+    .title { font-size:18px; font-weight:700; margin-bottom:4px; line-height:1.3; word-break:break-word; }
+    .info { font-size:12px; color:var(--muted); letter-spacing:.02em; }
+    .highlight { font-size:14px; line-height:1.6; color:var(--fg); opacity:.92; }
+    .content { font-size:15px; line-height:1.7; white-space:pre-wrap; word-break:break-word; }
+    .tags { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag { padding:4px 10px; border-radius:999px; border:1px solid var(--border); font-size:12px; color:var(--muted); }
+    .note-actions { display:flex; gap:8px; }
+    .note-actions button { flex:1; padding:10px 0; font-size:14px; background:transparent; border:1px solid var(--border); }
+    .comments { border-top:1px solid var(--border); padding-top:12px; display:flex; flex-direction:column; gap:12px; }
+    .comment-list { display:flex; flex-direction:column; gap:10px; max-height:280px; overflow-y:auto; padding-right:4px; }
+    .comment { background:var(--comment-bg); border-radius:18px; padding:10px 14px; display:flex; flex-direction:column; gap:4px; position:relative; }
+    .comment .who { font-size:12px; font-weight:600; color:var(--muted); display:flex; justify-content:space-between; }
+    .comment .text { font-size:14px; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+    .comment-actions { position:absolute; top:8px; right:8px; display:flex; gap:6px; opacity:0; transition:opacity .2s; }
+    .comment:hover .comment-actions { opacity:1; }
+    .comment-actions button { padding:4px 6px; font-size:11px; border-radius:8px; background:rgba(0,0,0,.2); border:1px solid transparent; }
+    [data-theme="light"] .comment-actions button { background:rgba(0,0,0,.08); }
+    .comment-form { display:flex; gap:10px; align-items:flex-end; }
+    .comment-form textarea { min-height:44px; max-height:120px; padding:12px 16px; border-radius:24px; line-height:1.4; }
+    .comment-form button { white-space:nowrap; }
+    .empty { text-align:center; color:var(--muted); padding:60px 0; font-size:16px; }
+    .fab { position:fixed; right:20px; bottom:20px; z-index:30; background:linear-gradient(135deg,#ff9d9d,#ffcc80); color:#2d1f1f; border:none; padding:14px 22px; border-radius:20px; font-weight:800; box-shadow:0 16px 28px rgba(0,0,0,.35); }
+    .banner { font-size:13px; padding:10px 14px; border-radius:16px; border:1px solid rgba(255,138,128,.35); background:rgba(255,138,128,.12); color:var(--danger); text-align:center; }
+    body.is-offline .banner { border-color:rgba(255,138,128,.45); }
+    [hidden] { display:none !important; }
+    .input-row { display:flex; gap:12px; flex-wrap:wrap; }
+    .input-row .input-flex { flex:1; min-width:120px; }
+    .accent-danger { margin-right:auto; background:rgba(255,138,128,.1); color:var(--danger); border:1px solid rgba(255,138,128,.4); }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    dialog { width:min(720px,94vw); border:1px solid var(--border); border-radius:24px; background:var(--card); color:var(--fg); padding:0; }
+    dialog::backdrop { background:rgba(0,0,0,.65); backdrop-filter:blur(4px); }
+    .dlg-head { padding:18px 22px; border-bottom:1px solid var(--border); font-weight:800; display:flex; align-items:center; justify-content:space-between; }
+    .dlg-body { padding:20px 22px; display:flex; flex-direction:column; gap:16px; }
+    .dlg-foot { padding:16px 22px 20px; border-top:1px solid var(--border); display:flex; gap:12px; justify-content:flex-end; }
+    .status { font-size:13px; color:var(--muted); min-height:1.2em; }
     .status.ok { color:var(--ok); }
     .status.err { color:var(--danger); }
-    .toast { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#2a2a2a; border:1px solid #333; padding:10px 14px; border-radius:999px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; }
-    .toast.show { opacity:1; transform:translateX(-50%) translateY(-4px); }
+    .toast { position:fixed; left:50%; bottom:30px; transform:translateX(-50%) translateY(40px); background:rgba(28,30,34,.92); color:#fff; padding:12px 20px; border-radius:999px; font-size:14px; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:40; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    @media (max-width:720px){
+      main { grid-template-columns:1fr; padding-bottom:32vh; }
+      header { padding:12px 14px 8px; }
+      .note { border-radius:20px; padding:16px; }
+      .note::before { opacity:.18; }
+      .fab { border-radius:18px; padding:12px 20px; font-size:15px; }
+    }
   </style>
 </head>
 <body>
   <header>
-    <div class="row">
-      <div style="font-weight:800">Notebook</div>
-      <span class="chip">左緣→右滑：上一頁</span>
+    <div class="header-row">
+      <div class="brand">Mood Notebook</div>
       <span class="chip" id="count">0 筆</span>
-      <button id="btnRefresh" style="margin-left:auto">更新</button>
+      <div class="spacer"></div>
+      <button class="icon" id="btnTheme" aria-label="切換主題" type="button">
+        <svg viewBox="0 0 24 24"><path d="M12 4.5a1 1 0 0 1 1 1V7a1 1 0 0 1-2 0V5.5a1 1 0 0 1 1-1Zm0 12a1 1 0 0 1 1 1V19a1 1 0 0 1-2 0v-1.5a1 1 0 0 1 1-1Zm7.5-5.5a1 1 0 0 1 1 1v.01a1 1 0 0 1-1 1H18a1 1 0 0 1 0-2h1.5Zm-11 0a1 1 0 0 1 1 1v.01a1 1 0 0 1-1 1H7a1 1 0 0 1 0-2h1.5Zm9.15 6.65a1 1 0 0 1 1.41 0l1.06 1.06a1 1 0 0 1-1.41 1.41l-1.06-1.06a1 1 0 0 1 0-1.41ZM5.93 6.1a1 1 0 0 1 1.41 0L8.4 7.16A1 1 0 1 1 6.99 8.57L5.93 7.5a1 1 0 0 1 0-1.4Zm12.47 1.4a1 1 0 1 1-1.41 1.41L15.93 7.5a1 1 0 0 1 1.41-1.41ZM6.1 18.07a1 1 0 0 1 1.41 0L8.57 19.1a1 1 0 0 1-1.41 1.41L6.1 19.48a1 1 0 0 1 0-1.41ZM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"/></svg>
+      </button>
+      <button id="btnRefresh" type="button">更新</button>
     </div>
-    <div class="row" style="margin-top:6px">
-      <input id="q" placeholder="搜尋標題或內容…" />
-      <button id="btnSearch">搜尋</button>
-      <button id="btnClear">清空</button>
+    <div class="header-row filters">
+      <input id="q" type="search" placeholder="搜尋心情、亮點或標籤…">
+      <select id="filterMood" class="filter-select">
+        <option value="">全部心情</option>
+        <option value="5">5｜閃亮</option>
+        <option value="4">4｜欣喜</option>
+        <option value="3">3｜平穩</option>
+        <option value="2">2｜低潮</option>
+        <option value="1">1｜需要擁抱</option>
+      </select>
+      <button id="btnSearch" type="button">搜尋</button>
+      <button id="btnClear" type="button">清空</button>
     </div>
+    <div id="offlineBanner" class="banner" hidden>目前為離線模式，顯示最近的快取內容。</div>
   </header>
 
   <main id="list"></main>
-  <div id="error" class="err"></div>
+  <div id="error" class="empty" hidden></div>
 
-  <button class="fab" id="btnNew"><span>＋ 新增</span></button>
+  <button class="fab" id="btnNew" type="button">＋ 記一筆</button>
 
-  <!-- 單框輸入（新增） -->
-  <dialog id="dlgNew">
-    <div class="dlg-head">新增（單框輸入）</div>
-    <div class="dlg-body">
-      <textarea id="fOne" rows="10" placeholder="直接貼上或輸入：
-標題：我今天的想法
-分類：日記
-#靈感 #工作
-這裡是內容…（沒有填的就略過）"></textarea>
-      <div class="tip">規則：有「標題：」就取後面；有「分類：」就取後面；有「#標籤」就全部撿起來；其餘文字當作內容。日期會自動帶入台北時間。</div>
-      <div id="statusNew" class="status"></div>
-    </div>
-    <div class="dlg-foot">
-      <button id="btnCancelNew">關閉</button>
-      <button id="btnSaveNew">儲存</button>
-    </div>
-  </dialog>
-
-  <!-- 編輯視窗 -->
   <dialog id="dlgEdit">
-    <div class="dlg-head" id="dlgTitle">編輯筆記</div>
-    <div class="dlg-body">
-      <input id="fTitle" placeholder="標題" />
-      <textarea id="fContent" rows="8" placeholder="內容"></textarea>
-      <input id="fCategory" placeholder="分類" />
-      <input id="fTags" placeholder="標籤（以逗號分隔）" />
-      <input id="fDate" placeholder="日期（自動）" disabled />
-      <div id="statusEdit" class="status"></div>
+    <div class="dlg-head">
+      <span id="dlgTitle">新增心情</span>
+      <button class="icon" id="btnCloseEdit" aria-label="關閉" type="button">
+        <svg viewBox="0 0 24 24"><path d="M12 10.586 6.707 5.293 5.293 6.707 10.586 12l-5.293 5.293 1.414 1.414L12 13.414l5.293 5.293 1.414-1.414L13.414 12l5.293-5.293-1.414-1.414Z"/></svg>
+      </button>
     </div>
+    <form class="dlg-body" id="formEdit">
+      <input name="標題" type="text" placeholder="標題" required>
+      <textarea name="正文" placeholder="今天的心情…" required></textarea>
+      <input name="亮點摘錄" type="text" placeholder="亮點摘錄（可選）">
+      <div class="input-row">
+        <input name="心情指數" type="number" min="1" max="5" step="1" placeholder="心情指數（1-5）" class="input-flex">
+        <input name="情緒主題" type="text" placeholder="情緒主題" class="input-flex">
+      </div>
+      <input name="標籤" type="text" placeholder="標籤，使用逗號或 #">
+      <input name="配色" type="text" placeholder="配色（#RRGGBB 或 calm / sunset / ocean）">
+      <input name="記錄時間" type="text" placeholder="記錄時間（預設現在）">
+      <div class="status" id="statusEdit"></div>
+      <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true">儲存</button>
+    </form>
     <div class="dlg-foot">
-      <button id="btnDelete" style="display:none">刪除</button>
-      <button id="btnCancelEdit">關閉</button>
-      <button id="btnSaveEdit">儲存</button>
+      <button id="btnDelete" type="button" class="accent-danger">刪除</button>
+      <button id="btnCancelEdit" type="button">取消</button>
+      <button id="btnSaveEdit" type="submit">儲存</button>
     </div>
   </dialog>
 
-  <!-- 閱讀視窗 -->
-  <dialog id="dlgRead">
-    <div class="dlg-head">
-      <span>閱讀</span>
-      <div class="read-nav">
-        <button id="btnPrev">上一則</button>
-        <button id="btnNext">下一則</button>
-      </div>
-    </div>
+  <dialog id="dlgComment">
+    <div class="dlg-head">編輯留言</div>
     <div class="dlg-body">
-      <div class="read-title" id="rTitle"></div>
-      <div class="read-meta" id="rMeta"></div>
-      <div class="read-content" id="rContent"></div>
-      <div class="read-meta" id="rTags"></div>
+      <textarea id="commentContent" rows="5"></textarea>
+      <div class="status" id="statusComment"></div>
     </div>
     <div class="dlg-foot">
-      <button id="btnCloseRead">關閉</button>
-      <button id="btnEditFromRead">編輯這則</button>
+      <button id="btnCancelComment" type="button">取消</button>
+      <button id="btnSaveComment" type="button">儲存</button>
     </div>
   </dialog>
 
   <div id="toast" class="toast">已完成</div>
 
   <script>
-  // ====== 常數（GAS 規則） ======
   const API = "https://script.google.com/macros/s/AKfycbx3oTDF49EmwGp5ZgGs9WIO64m7UzVzj5IDcBmm222aR7eTQTG8DXUsYVGVnzH2ga4abQ/exec";
-  const ACT = { list:'列出筆記', get:'取得筆記', create:'新增筆記', update:'修改筆記', delete:'刪除筆記' };
-  const KEY = { title:'標題', content:'內容', category:'分類', tags:'標籤', date:'日期', id:'id' };
+  const ACT = {
+    list:'列出筆記', get:'取得筆記', create:'新增筆記', update:'修改筆記', del:'刪除筆記', restore:'還原筆記',
+    listComment:'列出留言', createComment:'新增留言', updateComment:'修改留言', deleteComment:'刪除留言'
+  };
 
-  // ====== 點擊波紋（所有按鈕） ======
-  document.body.addEventListener('click', e=>{
-    const btn = e.target.closest('button'); if(!btn) return;
-    const r = document.createElement('span');
-    r.className = 'ripple';
-    const rect = btn.getBoundingClientRect();
-    r.style.left = (e.clientX - rect.left) + 'px';
-    r.style.top  = (e.clientY - rect.top) + 'px';
-    btn.appendChild(r);
-    setTimeout(()=> r.remove(), 500);
-  });
+  const CACHE_KEY='mood-notebook-cache-v2';
+  const MAX_COMMENT_CACHE=20;
+  let toastTimer=null;
+  let offlineToastShown=false;
 
-  // ====== 工具 ======
-  function clearErr(){ error.textContent=''; }
-  function showErr(msg, raw){ error.textContent = '⚠️ ' + msg + (raw ? ('\n' + raw) : ''); }
-  function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg||'已完成'; t.classList.add('show'); setTimeout(()=> t.classList.remove('show'), 1200); }
-  function setStatus(el, msg, ok=false, err=false){ el.textContent=msg||''; el.classList.toggle('ok', !!ok); el.classList.toggle('err', !!err); }
-  function normalizeList(data) {
-    if (Array.isArray(data)) return data;
-    if (!data || typeof data !== 'object') return [];
-    return data.items || data.data || data.list || data.records || data.rows || data.notes || data.data || [];
+  const state = { notes:[], comments:{}, editing:null, editingComment:null };
+  const searchInput=document.getElementById('q');
+  const moodSelect=document.getElementById('filterMood');
+  const offlineBanner=document.getElementById('offlineBanner');
+
+  function toast(msg){
+    const t=document.getElementById('toast');
+    if(!t) return;
+    t.textContent=msg||'已完成';
+    t.classList.add('show');
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove('show'), 1600);
   }
-  function normalizeItem(d) { if (!d) return d; if (d.item) return d.item; if (d.data && !Array.isArray(d.data)) return d.data; return d; }
-  function anyId(obj){
-    if (!obj || typeof obj!=='object') return undefined;
-    for (const k of Object.keys(obj)) {
-      const low = k.toLowerCase();
-      if (low==='id' || low.endsWith('id')) return obj[k];
-      if (/筆記.*id/i.test(k) || /note.*id/i.test(k)) return obj[k];
+  function showError(msg){
+    const err=document.getElementById('error');
+    if(!err) return;
+    err.textContent=msg;
+    err.removeAttribute('hidden');
+  }
+  function clearError(){
+    const err=document.getElementById('error');
+    if(!err) return;
+    err.textContent='';
+    err.setAttribute('hidden','');
+  }
+  function fmtTime(str){ if(!str) return ''; try{ const d=new Date(str); if(isNaN(d)) return str; return d.toLocaleString('zh-TW',{hour12:false}); }catch(_){ return str; } }
+  function deriveColor(note){
+    const map={ calm:'#4fc3f7', sunset:'#ffab91', ocean:'#64b5f6', forest:'#81c784', dusk:'#9575cd' };
+    const key=(note['配色']||'').toLowerCase().trim();
+    if(/^#([0-9a-f]{6})$/i.test(key)) return key;
+    if(map[key]) return map[key];
+    const mood=String(note['心情指數']||'').trim();
+    if(mood.startsWith('5')) return '#ffd166';
+    if(mood.startsWith('4')) return '#ff9d6c';
+    if(mood.startsWith('3')) return '#64b5f6';
+    if(mood.startsWith('2')) return '#9575cd';
+    if(mood.startsWith('1')) return '#90a4ae';
+    return '#4fc3f7';
+  }
+  function setCount(count, opts){
+    const el=document.getElementById('count');
+    if(!el) return;
+    if(count===null){ el.textContent='載入中…'; return; }
+    const optionObj=typeof opts==='object'?opts:{cached:!!opts};
+    el.textContent=(count||0)+(optionObj.cached?' 筆（快取）':' 筆');
+  }
+  function persistSnapshot(){
+    try{
+      const trimmed={};
+      Object.keys(state.comments).forEach(id=>{
+        const list=state.comments[id];
+        if(Array.isArray(list) && list.length){ trimmed[id]=list.slice(-MAX_COMMENT_CACHE); }
+      });
+      const snapshot={
+        notes: state.notes,
+        comments: trimmed,
+        filters:{ keyword: searchInput.value.trim(), mood: moodSelect.value },
+        ts: Date.now()
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(snapshot));
+    }catch(err){ console.warn('快取寫入失敗', err); }
+  }
+  function hydrateFromCache(options){
+    options=options||{};
+    try{
+      const raw=localStorage.getItem(CACHE_KEY);
+      if(!raw) return false;
+      const snapshot=JSON.parse(raw);
+      if(snapshot && snapshot.filters){
+        if(snapshot.filters.keyword!==undefined) searchInput.value=snapshot.filters.keyword;
+        if(snapshot.filters.mood!==undefined) moodSelect.value=snapshot.filters.mood;
+      }
+      if(snapshot && Array.isArray(snapshot.notes)){
+        state.notes=snapshot.notes;
+        state.comments=snapshot.comments||{};
+        if(options.render!==false){
+          renderNotes();
+          setCount(state.notes.length, {cached: options.forceCached || !navigator.onLine});
+        }
+        return true;
+      }
+    }catch(err){ console.warn('快取讀取失敗', err); }
+    return false;
+  }
+  function setOfflineMode(flag, opts){
+    opts=opts||{};
+    document.body.classList.toggle('is-offline', !!flag);
+    if(offlineBanner){
+      if(flag){ offlineBanner.removeAttribute('hidden'); }
+      else { offlineBanner.setAttribute('hidden',''); }
     }
-    return obj[KEY.id] ?? obj.id;
-  }
-  function fmtDate(s) {
-    try { const d = new Date(s); if (!isNaN(d.getTime())) return d.toLocaleString('zh-TW', {hour12:false}); return s||''; }
-    catch(e){ return s||''; }
-  }
-  function nowTaipeiStr() {
-    try {
-      const fmt = new Intl.DateTimeFormat('zh-TW', { timeZone:'Asia/Taipei', hour12:false,
-        year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit'
-      }).format(new Date());
-      const m = fmt.match(/(\d{4})[\/年\-](\d{2})[\/月\-](\d{2}).(\d{2}):(\d{2}):(\d{2})/);
-      if (m) return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
-    } catch(e){}
-    const d = new Date();
-    const y = d.getUTCFullYear(), mm=String(d.getUTCMonth()+1).padStart(2,'0'), dd=String(d.getUTCDate()).padStart(2,'0');
-    const hh=String((d.getUTCHours()+8)%24).padStart(2,'0'), mi=String(d.getUTCMinutes()).padStart(2,'0'), ss=String(d.getUTCSeconds()).padStart(2,'0');
-    return `${y}-${mm}-${dd} ${hh}:${mi}:${ss}`;
-  }
-  function parseOne(text) {
-    const tags = Array.from(text.matchAll(/#([^\s#]+)/g)).map(m=>m[1]);
-    let 標題='', 分類='';
-    const lines = text.split(/\r?\n/);
-    const rest = [];
-    for (let line of lines) {
-      if (!標題) { const m = line.match(/^\s*標題\s*[：:]\s*(.+)$/); if (m) { 標題 = m[1].trim(); continue; } }
-      if (!分類) { const m = line.match(/^\s*分類\s*[：:]\s*(.+)$/); if (m) { 分類 = m[1].trim(); continue; } }
-      const cleaned = line.replace(/#([^\s#]+)/g, '').trimEnd();
-      rest.push(cleaned);
+    if(flag){
+      if(!offlineToastShown && !opts.silent){ toast('目前離線，顯示快取資料'); }
+      offlineToastShown=true;
+    }else{
+      offlineToastShown=false;
     }
-    let 內容 = rest.join('\n').trim();
-    if (!標題) 標題 = (內容 || '（無標題）').slice(0, 8);
-    const 標籤 = tags.join(',');
-    return { 標題, 分類, 標籤, 內容 };
   }
-  async function getJson(params){
-    clearErr();
-    const url = new URL(API);
-    Object.entries(params).forEach(([k,v])=> url.searchParams.set(k, v));
-    const res = await fetch(url.toString(), { method:'GET' });
-    const raw = await res.text();
-    try { return JSON.parse(raw); } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
+  function debounce(fn, wait){
+    wait=wait||200;
+    let timer;
+    return function(...args){
+      if(timer) clearTimeout(timer);
+      timer=setTimeout(()=>fn.apply(this,args), wait);
+    };
   }
-  async function postJson(action, bodyObj){
-    clearErr();
-    const url = new URL(API);
-    url.searchParams.set('action', action);
-    const res = await fetch(url.toString(), {
+  async function callGet(params){
+    const url=new URL(API);
+    Object.keys(params||{}).forEach(k=> url.searchParams.set(k, params[k]));
+    url.searchParams.set('_ts', Date.now());
+    const res=await fetch(url.toString(), { cache:'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    let json;
+    try{ json=await res.json(); }catch(_){ throw new Error('回傳格式異常'); }
+    if(!json.ok) throw new Error(json.error||'發生錯誤');
+    return json.data;
+  }
+  async function callPost(action, payload){
+    const res=await fetch(API+'?action='+encodeURIComponent(action), {
       method:'POST',
-      headers:{ 'Content-Type':'application/json;charset=UTF-8' },
-      body: JSON.stringify(bodyObj||{})
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload||{})
     });
-    const raw = await res.text();
-    try { return JSON.parse(raw); } catch(e){ showErr('後端不是 JSON：', raw); return {error:'not_json', raw}; }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    let json;
+    try{ json=await res.json(); }catch(_){ throw new Error('回傳格式異常'); }
+    if(!json.ok) throw new Error(json.error||'發生錯誤');
+    return json;
   }
 
-  // ====== 主清單 ======
-  let notes = [];
-  let editingId = null;
-  let currentIndex = -1;
-  let autoTimer = null;
-
-  async function loadList(keyword='') {
-    const data = await getJson({ action: ACT.list, keyword, q: keyword, limit: 200 });
-    notes = normalizeList(data);
-    renderList();
+  async function loadNotes(){
+    clearError();
+    setCount(null);
+    const keyword=searchInput.value.trim();
+    const mood=moodSelect.value;
+    const params={ action:ACT.list };
+    if(keyword) params.keyword=keyword;
+    if(mood) params.mood=mood;
+    try{
+      const notes=await callGet(params);
+      state.notes=Array.isArray(notes)?notes:[];
+      setOfflineMode(false, {silent:true});
+      setCount(state.notes.length, {cached:false});
+      renderNotes();
+      if(!state.notes.length){ showError('目前還沒有心情筆記，點右下角開始記錄。'); }
+      persistSnapshot();
+    }catch(err){
+      console.error('讀取失敗', err);
+      const offline=!navigator.onLine;
+      if(offline){
+        if(!state.notes.length){
+          const loaded=hydrateFromCache({render:false});
+          if(loaded){ renderNotes(); }
+        }
+        setOfflineMode(true);
+        setCount(state.notes.length, {cached:true});
+        if(state.notes.length){
+          showError('目前離線，顯示最近的快取資料。');
+        }else{
+          showError('目前離線且沒有快取資料，請稍後再試。');
+        }
+      }else{
+        setOfflineMode(false);
+        if(!state.notes.length){ setCount(0,{cached:false}); }
+        showError('讀取失敗：'+err.message);
+      }
+    }
   }
-  function renderList() {
-    const el = document.getElementById('list');
-    el.innerHTML = '';
-    const count = notes.length || 0;
-    document.getElementById('count').textContent = count + ' 筆';
-    if (!count) { el.innerHTML = '<div class="empty">沒有資料</div>'; return; }
-    notes.forEach((n, idx)=> {
-      const title = n[KEY.title] ?? n.title ?? '(無標題)';
-      const date  = fmtDate(n[KEY.date] ?? n.date ?? '');
-      const cat   = n[KEY.category] ?? n.category ?? '';
-      const tags  = n[KEY.tags] ?? n.tags ?? '';
-      const id    = anyId(n);
-      const card = document.createElement('div');
-      card.className = 'note';
-      card.innerHTML = `
-        <div class="note-body" data-open="${idx}">
-          <div class="title">${title}</div>
-          <div class="meta">${date}${cat?' · '+cat:''}${tags?' · '+tags:''}</div>
-        </div>
-        <div class="actions">
-          <button data-id="${id ?? ''}" class="edit">編輯</button>
-          <button data-id="${id ?? ''}" class="del">刪除</button>
+
+  function renderNotes(){
+    const list=document.getElementById('list');
+    list.innerHTML='';
+    state.notes.forEach(note=>{
+      const card=document.createElement('article');
+      card.className='note';
+      card.dataset.id=note.ID;
+      const noteColor=deriveColor(note);
+      card.style.setProperty('--note-color', noteColor);
+      const tags=(note['標籤']||'').split(/[#,，, ]+/).filter(Boolean);
+      card.innerHTML=`
+        <div class="note-body">
+          <div class="note-head">
+            <div class="mood">${(note['心情指數']||'').toString().slice(0,3)||'–'}</div>
+            <div class="meta">
+              <div class="title">${escapeHtml(note['標題']||'心情記錄')}</div>
+              <div class="info">${fmtTime(note['記錄時間'])}${note['情緒主題']?(' · '+escapeHtml(note['情緒主題'])):''}</div>
+            </div>
+            <button class="icon btn-edit" data-id="${note.ID}" title="編輯">
+              <svg viewBox="0 0 24 24"><path d="M4 17.25V20h2.75L17.81 8.94l-2.75-2.75L4 17.25Zm15.71-9.71a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z"/></svg>
+            </button>
+          </div>
+          <div class="highlight">${escapeHtml(note['亮點摘錄']||'')}</div>
+          <div class="content">${escapeHtml(note['正文']||'')}</div>
+          <div class="tags">${tags.map(t=>`<span class="tag">#${escapeHtml(t)}</span>`).join('')}</div>
+          <div class="comments" data-id="${note.ID}">
+            <div class="comment-list">${renderCommentList(note.ID)}</div>
+            <form class="comment-form" data-id="${note.ID}">
+              <textarea placeholder="寫下一句回應…" maxlength="400"></textarea>
+              <button type="submit">送出</button>
+            </form>
+          </div>
         </div>`;
-      el.appendChild(card);
+      list.appendChild(card);
+      attachCommentListeners(card, note.ID);
+      requestComments(note.ID);
     });
   }
 
-  // ====== 點卡片 / 編輯 / 刪除 ======
-  list.addEventListener('click', async (e)=> {
-    const open = e.target.closest('[data-open]');
-    const btn = e.target.closest('button');
-    if (open) { openRead(parseInt(open.getAttribute('data-open'), 10)); return; }
-    if (!btn) return;
-    const id = btn.getAttribute('data-id');
-    if (!id) { showErr('找不到這筆的識別碼（id）'); return; }
-    if (btn.classList.contains('edit')) {
-      const d = await getJson({ action: ACT.get, id });
-      const item = normalizeItem(d) || {}; if (anyId(item) == null) item.id = id;
-      openEditor(item);
-    } else if (btn.classList.contains('del')) {
-      if (!confirm('確定要刪除？（將搬到回收）')) return;
-      await postJson(ACT.delete, { id });
-      toast('已刪除');
-      await loadList(q.value.trim());
+  function renderCommentList(noteId){
+    const comments=state.comments[noteId]||[];
+    if(!comments.length) return '<div class="info">還沒有留言，留下第一句吧。</div>';
+    return comments.map(c=>`
+      <div class="comment" data-comment="${c['留言ID']}">
+        <div class="who"><span>${escapeHtml(c['留言者']||'Me')}</span><span>${fmtTime(c['留言時間'])}</span></div>
+        <div class="text">${escapeHtml(c['留言內容']||'')}</div>
+        <div class="comment-actions">
+          <button data-action="edit" data-id="${c['留言ID']}" data-note="${noteId}">編輯</button>
+          <button data-action="delete" data-id="${c['留言ID']}" data-note="${noteId}">刪除</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function attachCommentListeners(card, noteId){
+    const form=card.querySelector('.comment-form');
+    const textarea=form.querySelector('textarea');
+    textarea.addEventListener('keydown', e=>{
+      if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
+    });
+    form.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const value=textarea.value.trim();
+      if(!value) return;
+      if(!navigator.onLine){ toast('目前離線，請恢復網路後再留言'); return; }
+      const submitBtn=form.querySelector('button');
+      submitBtn.disabled=true;
+      try{
+        await callPost(ACT.createComment, { noteId, '留言內容':value });
+        textarea.value='';
+        await requestComments(noteId,true);
+        toast('已送出留言');
+      }catch(err){ toast('留言失敗：'+err.message); }
+      finally{ submitBtn.disabled=false; }
+    });
+    card.querySelector('.comment-list').addEventListener('click', handleCommentAction);
+    card.querySelector('.btn-edit').addEventListener('click', ()=> openEditor(noteId));
+  }
+
+  async function requestComments(noteId, force){
+    if(!force && state.comments[noteId]){ updateCommentList(noteId); return; }
+    if(!force && !navigator.onLine){ updateCommentList(noteId); return; }
+    try{
+      const data=await callPost(ACT.listComment, { noteId });
+      state.comments[noteId]=Array.isArray(data.data)?data.data:[];
+      updateCommentList(noteId);
+      persistSnapshot();
+    }catch(err){ console.warn('留言讀取失敗', err); }
+  }
+
+  function updateCommentList(noteId){
+    const wrap=document.querySelector(`.comments[data-id="${noteId}"] .comment-list`);
+    if(!wrap) return;
+    wrap.innerHTML=renderCommentList(noteId);
+  }
+
+  function handleCommentAction(e){
+    const btn=e.target.closest('button');
+    if(!btn) return;
+    const id=btn.dataset.id;
+    const noteId=btn.dataset.note;
+    if(btn.dataset.action==='edit'){ openCommentEditor(noteId, id); }
+    if(btn.dataset.action==='delete'){ deleteComment(noteId, id); }
+  }
+
+  function openEditor(noteId){
+    const dlg=document.getElementById('dlgEdit');
+    const form=document.getElementById('formEdit');
+    form.reset();
+    const status=document.getElementById('statusEdit');
+    status.textContent='';
+    status.className='status';
+    state.editing=null;
+    document.getElementById('btnDelete').style.display='none';
+    document.getElementById('dlgTitle').textContent='新增心情';
+    if(noteId){
+      const note=state.notes.find(n=>String(n.ID)===String(noteId));
+      if(!note) return;
+      state.editing=noteId;
+      form.elements['標題'].value=note['標題']||'';
+      form.elements['正文'].value=note['正文']||'';
+      form.elements['亮點摘錄'].value=note['亮點摘錄']||'';
+      form.elements['心情指數'].value=note['心情指數']||'';
+      form.elements['情緒主題'].value=note['情緒主題']||'';
+      form.elements['標籤'].value=note['標籤']||'';
+      form.elements['配色'].value=note['配色']||'';
+      form.elements['記錄時間'].value=note['記錄時間']||'';
+      document.getElementById('dlgTitle').textContent='編輯心情';
+      document.getElementById('btnDelete').style.display='inline-flex';
+    }
+    dlg.showModal();
+  }
+
+  const debouncedSearch=debounce(()=>loadNotes(), 320);
+
+  document.getElementById('btnNew').addEventListener('click', ()=> openEditor());
+  document.getElementById('btnRefresh').addEventListener('click', ()=> loadNotes());
+  document.getElementById('btnSearch').addEventListener('click', ()=> loadNotes());
+  document.getElementById('btnClear').addEventListener('click', ()=>{
+    searchInput.value='';
+    moodSelect.value='';
+    loadNotes();
+  });
+  moodSelect.addEventListener('change', ()=> loadNotes());
+  searchInput.addEventListener('input', ()=> debouncedSearch());
+  searchInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); loadNotes(); } });
+
+  document.getElementById('btnCloseEdit').addEventListener('click', ()=>{
+    const status=document.getElementById('statusEdit');
+    status.textContent='';
+    status.className='status';
+    document.getElementById('dlgEdit').close();
+  });
+  document.getElementById('btnCancelEdit').addEventListener('click', ()=>{
+    const status=document.getElementById('statusEdit');
+    status.textContent='';
+    status.className='status';
+    document.getElementById('dlgEdit').close();
+  });
+
+  document.getElementById('btnSaveEdit').addEventListener('click', ()=> document.getElementById('formEdit').requestSubmit());
+
+  document.getElementById('formEdit').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const form=e.target;
+    const payload={};
+    Array.from(form.elements).forEach(el=>{ if(el.name) payload[el.name]=el.value.trim(); });
+    if(payload['記錄時間']===''){ delete payload['記錄時間']; }
+    const status=document.getElementById('statusEdit');
+    status.textContent='';
+    status.className='status';
+    if(!navigator.onLine){
+      status.textContent='目前離線，無法儲存。';
+      status.className='status err';
+      return;
+    }
+    try{
+      if(state.editing){
+        payload.id=state.editing;
+        await callPost(ACT.update, payload);
+        toast('已更新');
+      }else{
+        await callPost(ACT.create, payload);
+        toast('已建立');
+      }
+      document.getElementById('dlgEdit').close();
+      await loadNotes();
+    }catch(err){
+      status.textContent='儲存失敗：'+err.message;
+      status.className='status err';
     }
   });
 
-  // ====== 閱讀視窗 ======
-  const dlgRead = document.getElementById('dlgRead');
-  function openRead(idx) {
-    currentIndex = idx;
-    const n = notes[idx]; if (!n) return;
-    rTitle.textContent = n[KEY.title] ?? n.title ?? '(無標題)';
-    rMeta.textContent = [fmtDate(n[KEY.date] ?? n.date ?? ''), (n[KEY.category] ?? n.category ?? '')].filter(Boolean).join(' · ');
-    rContent.textContent = (n[KEY.content] ?? n.content ?? '');
-    rTags.textContent = (n[KEY.tags] ?? n.tags ?? '') ? '標籤：' + (n[KEY.tags] ?? n.tags ?? '') : '';
-    dlgRead.showModal();
+  document.getElementById('btnDelete').addEventListener('click', async ()=>{
+    if(!state.editing) return;
+    if(!confirm('確定要刪除這筆心情嗎？')) return;
+    const status=document.getElementById('statusEdit');
+    status.textContent='';
+    status.className='status';
+    if(!navigator.onLine){
+      status.textContent='目前離線，無法刪除。';
+      status.className='status err';
+      return;
+    }
+    try{
+      await callPost(ACT.del, { id:state.editing });
+      toast('已刪除');
+      document.getElementById('dlgEdit').close();
+      await loadNotes();
+    }catch(err){ status.textContent='刪除失敗：'+err.message; status.className='status err'; }
+  });
+
+  function openCommentEditor(noteId, commentId){
+    state.editingComment={ noteId, commentId };
+    const cmts=state.comments[noteId]||[];
+    const target=cmts.find(c=>String(c['留言ID'])===String(commentId));
+    if(!target) return;
+    document.getElementById('commentContent').value=target['留言內容']||'';
+    const status=document.getElementById('statusComment');
+    status.textContent='';
+    status.className='status';
+    document.getElementById('dlgComment').showModal();
   }
-  btnPrev.addEventListener('click', ()=> { if (currentIndex>0) openRead(currentIndex-1); });
-  btnNext.addEventListener('click', ()=> { if (currentIndex<notes.length-1) openRead(currentIndex+1); });
-  btnCloseRead.addEventListener('click', ()=> dlgRead.close());
-  btnEditFromRead.addEventListener('click', async ()=> {
-    const n = notes[currentIndex]; if (!n) return;
-    const id = anyId(n);
-    const d = await getJson({ action: ACT.get, id });
-    const item = normalizeItem(d) || {}; if (anyId(item) == null) item.id = id;
-    dlgRead.close();
-    openEditor(item);
+  document.getElementById('btnCancelComment').addEventListener('click', ()=>{
+    const status=document.getElementById('statusComment');
+    status.textContent='';
+    status.className='status';
+    document.getElementById('dlgComment').close();
+  });
+  document.getElementById('btnSaveComment').addEventListener('click', async ()=>{
+    if(!state.editingComment) return;
+    const text=document.getElementById('commentContent').value.trim();
+    const status=document.getElementById('statusComment');
+    status.textContent='';
+    status.className='status';
+    if(!text){ status.textContent='內容不得為空'; status.className='status err'; return; }
+    if(!navigator.onLine){ status.textContent='目前離線，無法更新留言'; status.className='status err'; return; }
+    try{
+      await callPost(ACT.updateComment, { id:state.editingComment.commentId, '留言內容':text });
+      document.getElementById('dlgComment').close();
+      toast('留言已更新');
+      await requestComments(state.editingComment.noteId, true);
+    }catch(err){ status.textContent='更新失敗：'+err.message; status.className='status err'; }
   });
 
-  // ====== 搜尋、更新 ======
-  btnRefresh.addEventListener('click', ()=> loadList(q.value.trim()));
-  q.addEventListener('keydown', e=> { if (e.key==='Enter') btnSearch.click(); });
-  btnSearch.addEventListener('click', ()=> loadList(q.value.trim()));
-  btnClear.addEventListener('click', ()=> { q.value=''; loadList(''); });
-
-  // ====== 新增（單框） ======
-  const dlgNew = document.getElementById('dlgNew');
-  btnNew.addEventListener('click', ()=> { fOne.value=''; setStatus(statusNew,''); dlgNew.showModal(); });
-  btnCancelNew.addEventListener('click', ()=> { dlgNew.close(); fOne.value=''; setStatus(statusNew,''); }); // 關閉清空
-  btnSaveNew.addEventListener('click', async ()=> {
-    const t = fOne.value.trim();
-    if (!t) { setStatus(statusNew,'請輸入內容',false,true); return; }
-    const data = parseOne(t);
-    if (!data.標題) { setStatus(statusNew,'請加入「標題：」或至少一些內容',false,true); return; }
-    const payload = { '日期': nowTaipeiStr(), '分類': data.分類||'', '標籤': data.標籤||'', '標題': data.標題||'', '內容': data.內容||'' };
-    await postJson(ACT.create, payload);
-    setStatus(statusNew, '已儲存', true, false);
-    toast('已儲存');
-    await loadList(q.value.trim()); // 不關視窗
-  });
-
-  // ====== 編輯 ======
-  const dlgEdit = document.getElementById('dlgEdit');
-  function openEditor(item=null) {
-    editingId = anyId(item) ?? null;
-    document.getElementById('dlgTitle').textContent = editingId ? '編輯筆記' : '新增筆記';
-    fTitle.value    = item?.[KEY.title]    ?? item?.title   ?? '';
-    fContent.value  = item?.[KEY.content]  ?? item?.content ?? '';
-    fCategory.value = item?.[KEY.category] ?? item?.category?? '';
-    fTags.value     = item?.[KEY.tags]     ?? item?.tags    ?? '';
-    fDate.value     = fmtDate(item?.[KEY.date] ?? item?.date ?? '');
-    setStatus(statusEdit, '');
-    btnDelete.style.display = editingId ? '' : 'none';
-    dlgEdit.showModal();
-  }
-  btnCancelEdit.addEventListener('click', ()=> { dlgEdit.close(); fTitle.value=''; fContent.value=''; fCategory.value=''; fTags.value=''; fDate.value=''; setStatus(statusEdit,''); editingId=null; }); // 關閉清空
-  btnSaveEdit.addEventListener('click', async ()=> {
-    const title = fTitle.value.trim();
-    if (!title) { setStatus(statusEdit,'請填標題',false,true); return; }
-    if (!editingId) { setStatus(statusEdit,'缺少 id，無法修改',false,true); return; }
-    const body = { id: editingId, '標題': title, '內容': fContent.value.trim(), '分類': fCategory.value.trim(), '標籤': fTags.value.trim() };
-    await postJson(ACT.update, body);
-    setStatus(statusEdit, '已儲存', true, false);
-    toast('已儲存');
-    await loadList(q.value.trim()); // 不關視窗
-  });
-  btnDelete.addEventListener('click', async ()=> {
-    if (!editingId) { setStatus(statusEdit,'缺少 id，無法刪除',false,true); return; }
-    if (!confirm('確定要刪除？（將搬到回收）')) return;
-    await postJson(ACT.delete, { id: editingId });
-    toast('已刪除');
-    dlgEdit.close();
-    fTitle.value=''; fContent.value=''; fCategory.value=''; fTags.value=''; fDate.value=''; setStatus(statusEdit,''); editingId=null;
-    await loadList(q.value.trim());
-  });
-
-  // ====== 自動刷新（每 15 秒） ======
-  function startAuto() {
-    if (autoTimer) clearInterval(autoTimer);
-    autoTimer = setInterval(()=> loadList(q.value.trim()), 15000);
+  async function deleteComment(noteId, commentId){
+    if(!confirm('要刪除這則留言嗎？')) return;
+    if(!navigator.onLine){ toast('目前離線，無法刪除留言'); return; }
+    try{
+      await callPost(ACT.deleteComment, { id:commentId });
+      toast('留言已刪除');
+      await requestComments(noteId, true);
+    }catch(err){ toast('刪除失敗：'+err.message); }
   }
 
-  // ====== 手勢：右滑返回、關雙擊/捏合 ======
-  let startX=0, startY=0, moved=false, lastTouchEnd=0;
-  window.addEventListener('touchstart', (e)=> { const t=e.touches[0]; startX=t.clientX; startY=t.clientY; moved=false; }, {passive:true});
-  window.addEventListener('touchmove', ()=> { moved=true; }, {passive:true});
-  window.addEventListener('touchend', (e)=> {
-    const now = Date.now();
-    if (now - lastTouchEnd <= 300) { e.preventDefault(); }
-    lastTouchEnd = now;
-    if (!moved) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - startX;
-    const dy = Math.abs(t.clientY - startY);
-    if (dx > 80 && dy < 50 && startX < 80) history.back();
-  }, {passive:false});
-  window.addEventListener('gesturestart', e=> { e.preventDefault(); }, {passive:false});
+  function escapeHtml(str){
+    return String(str||'').replace(/[&<>"']/g, s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[s]));
+  }
 
-  // 啟動
-  window.addEventListener('load', ()=> {
-    if ('serviceWorker' in navigator) try { navigator.serviceWorker.register('./sw.js'); } catch(e){}
-    loadList(''); startAuto();
+  // ===== 主題切換 =====
+  const themeBtn=document.getElementById('btnTheme');
+  function applyTheme(theme){
+    const root=document.documentElement;
+    if(theme==='light'){ root.setAttribute('data-theme','light'); } else { root.setAttribute('data-theme','dark'); }
+    localStorage.setItem('mood-theme', theme);
+  }
+  themeBtn.addEventListener('click', ()=>{
+    const current=document.documentElement.getAttribute('data-theme');
+    applyTheme(current==='light'?'dark':'light');
   });
+  (function initTheme(){
+    const saved=localStorage.getItem('mood-theme');
+    if(saved){ applyTheme(saved); return; }
+    if(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches){ applyTheme('light'); }
+  })();
+
+  // ===== 右滑返回 =====
+  let touchStartX=0, touchStartY=0, tracking=false;
+  window.addEventListener('touchstart', e=>{
+    if(e.touches.length!==1) return; const t=e.touches[0];
+    if(t.clientX>40) return; tracking=true; touchStartX=t.clientX; touchStartY=t.clientY;
+  });
+  window.addEventListener('touchmove', e=>{
+    if(!tracking) return; const t=e.touches[0];
+    if(Math.abs(t.clientY-touchStartY)>60){ tracking=false; }
+  });
+  window.addEventListener('touchend', e=>{
+    if(!tracking) return; tracking=false; const t=e.changedTouches[0];
+    if(t.clientX - touchStartX > 80){
+      const dlg=document.querySelector('dialog[open]');
+      if(dlg) dlg.close(); else history.back();
+    }
+  });
+
+  window.addEventListener('online', ()=>{
+    setOfflineMode(false, {silent:true});
+    toast('已恢復連線');
+    loadNotes();
+  });
+  window.addEventListener('offline', ()=>{
+    setOfflineMode(true);
+    setCount(state.notes.length, {cached:true});
+  });
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(err=>console.warn('SW 註冊失敗', err));
+  }
+
+  // 初次載入
+  if(!navigator.onLine){ setOfflineMode(true, {silent:true}); }
+  hydrateFromCache({forceCached:!navigator.onLine});
+  loadNotes();
   </script>
 </body>
 </html>
